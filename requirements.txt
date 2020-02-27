@@ -1,0 +1,3 @@
+pylibftdi
+numpy
+pyqtgraph

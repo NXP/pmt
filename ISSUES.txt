@@ -1,0 +1,4 @@
+RESET ISSUE on IMX8DXL:
+ - Rarely the board (only iMX8DXL) goes in an unstable state and we can't communicate with an IP of the board (GPIO expander PCA6416).
+ This IP controls reset GPIOs and Switch Resistance GPIOs thus they could become unreachable.
+ This provokes the incapibilty to change between High Current Shunt and Low Current Shunt in the UI, and also resetting properly the board.

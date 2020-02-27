@@ -1,0 +1,1029 @@
+# Copyright 2020 NXP.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+# Redistributions of source code must retain the above copyright notice, this
+# list of conditions and the following disclaimer.
+#
+# Redistributions in binary form must reproduce the above copyright notice, this
+# list of conditions and the following disclaimer in the documentation and/or
+# other materials provided with the distribution.
+#
+# Neither the name of the NXP Semiconductors nor the names of its
+# contributors may be used to endorse or promote products derived from this
+# software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+import signal
+import os
+import time
+import copy
+import csv
+import pickle
+
+import pyqtgraph as pg
+from pyqtgraph.Qt import QtGui, QtCore, QtWidgets
+import numpy as np
+
+import drv_ftdi
+
+COLORS = ["#8B7825", "#842D2C", "#5E3450", "#00253D", "#205632", "#4E2B1B", "#6C561A", "#8A2533", "#5A2C5D", "#005474",
+          "#4C762A", "#463626", "#6E4A1C", "#802247", "#2E1B45", "#00454E", "#554E24", "#2D2926", "#BE4C00", "#691F42",
+          "#543074", "#244A57", "#817800", "#99AA00", "#73371B", "#572831", "#0A282E", "#004C40", "#B39900", "#83322E",
+          "#632D4F", "#1A4086", "#005544"]
+
+GROUPS_COLORS = ["#4FA383", "#007A4D", "#95A7C8", "#385C9B"]
+
+FLAGS = {'display_all': False}
+
+WINDOW_WIDTH = 1280
+WINDOW_HEIGHT = 768
+
+pg.setConfigOption('background', 'w')
+pg.setConfigOption('foreground', 'k')
+
+
+class Worker(QtCore.QObject):
+    """creates worker class for thread"""
+
+    def __init__(self, board):
+        QtCore.QObject.__init__(self)
+        self.board = board
+
+    def do_work(self):
+        """runs function for collecting data"""
+        self.board.get_data()
+
+
+class ZoomDataWin(QtGui.QDialog):
+    """extern window displaying data in zoom region"""
+
+    def __init__(self, parent=None):
+        super(ZoomDataWin, self).__init__(parent)
+        self.parent = parent
+        self.header_title = ["Rail", "P_avg", "P_min", "P_max", "V_avg", "V_min", "V_max", "I_avg", "I_min", "I_max"]
+        self.data_table = QtGui.QTableWidget(0, len(self.header_title))
+        self.data_table.setHorizontalHeaderLabels(self.header_title)
+        for rail in self.parent.b.rails_to_display:
+            rowposition = self.data_table.rowCount()
+            self.data_table.insertRow(rowposition)
+            self.data_table.setItem(rowposition, 0, QtGui.QTableWidgetItem(rail['name']))
+
+        for group in self.parent.b.power_groups:
+            rowposition = self.data_table.rowCount()
+            self.data_table.insertRow(rowposition)
+            self.data_table.setItem(rowposition, 0, QtGui.QTableWidgetItem(group['name']))
+            self.data_table.item(rowposition, 0).setBackground(QtGui.QColor(169, 169, 0, 169))
+
+        self.w_data_lay = QtGui.QVBoxLayout()
+        self.rail_control = QtGui.QLabel("Time :")
+        self.w_data_lay.addWidget(self.rail_control)
+        self.w_data_lay.addWidget(self.data_table)
+        self.setLayout(self.w_data_lay)
+
+    def update_data(self, minx, maxx):
+        """updates data window"""
+        if self.isVisible():
+            self.rail_control.setText("Time : " + str(maxx - minx) + " sec")
+            i = 0
+            for d_rail in self.parent.b.rails_to_display:
+                rail = next((item for item in self.parent.rail_buf if item['railnumber'] == d_rail['name']), None)
+                voltage = rail['voltage'][1:]
+                current = rail['current'][1:]
+                power = np.empty_like(voltage)
+                power[:, 0] = voltage[:, 0]
+                power[:, 1] = voltage[:, 1] * current[:, 1]
+
+                min_t_p = power[:, 0].searchsorted(minx)
+                max_t_p = power[:, 0].searchsorted(maxx)
+                if min_t_p and min_t_p != max_t_p:
+                    p_avg = power[min_t_p:max_t_p, 1].mean()
+                    p_min = power[min_t_p:max_t_p, 1].min()
+                    p_max = power[min_t_p:max_t_p, 1].max()
+                    self.data_table.setItem(i, 1, QtGui.QTableWidgetItem(str(p_avg)))
+                    self.data_table.setItem(i, 2, QtGui.QTableWidgetItem(str(p_min)))
+                    self.data_table.setItem(i, 3, QtGui.QTableWidgetItem(str(p_max)))
+
+                min_t_v = voltage[:, 0].searchsorted(minx)
+                max_t_v = voltage[:, 0].searchsorted(maxx)
+                if min_t_v and min_t_v != max_t_v:
+                    v_avg = voltage[min_t_v:max_t_v, 1].mean()
+                    v_min = voltage[min_t_v:max_t_v, 1].min()
+                    v_max = voltage[min_t_v:max_t_v, 1].max()
+                    self.data_table.setItem(i, 4, QtGui.QTableWidgetItem(str(v_avg)))
+                    self.data_table.setItem(i, 5, QtGui.QTableWidgetItem(str(v_min)))
+                    self.data_table.setItem(i, 6, QtGui.QTableWidgetItem(str(v_max)))
+
+                min_t_c = current[:, 0].searchsorted(minx)
+                max_t_c = current[:, 0].searchsorted(maxx)
+                if min_t_c and min_t_c != max_t_c:
+                    c_avg = current[min_t_c:max_t_c, 1].mean()
+                    c_min = current[min_t_c:max_t_c, 1].min()
+                    c_max = current[min_t_c:max_t_c, 1].max()
+                    self.data_table.setItem(i, 7, QtGui.QTableWidgetItem(str(c_avg)))
+                    self.data_table.setItem(i, 8, QtGui.QTableWidgetItem(str(c_min)))
+                    self.data_table.setItem(i, 9, QtGui.QTableWidgetItem(str(c_max)))
+                i += 1
+
+            for j, group in enumerate(self.parent.groups_buf):
+                time_group = group['power'][:, 0]
+                power = group['power'][:, 1]
+                min_t_gp = time_group.searchsorted(minx)
+                max_t_gp = time_group.searchsorted(maxx)
+                if min_t_gp and min_t_gp != max_t_gp:
+                    gp_avg = power[min_t_gp:max_t_gp].mean()
+                    gp_min = power[min_t_gp:max_t_gp].min()
+                    gp_max = power[min_t_gp:max_t_gp].max()
+                    self.data_table.setItem(i + j + 1, 1, QtGui.QTableWidgetItem(str(gp_avg)))
+                    self.data_table.setItem(i + j + 1, 2, QtGui.QTableWidgetItem(str(gp_min)))
+                    self.data_table.setItem(i + j + 1, 3, QtGui.QTableWidgetItem(str(gp_max)))
+
+
+class MPDataWin(QtGui.QDialog):
+    """extern window displaying data pointed by mouse pointer"""
+
+    def __init__(self, parent=None):
+        super(MPDataWin, self).__init__(parent)
+        self.parent = parent
+        self.header_title = ["Rail", "Power (mW)", "Voltage (V)", "Current (mA)"]
+        self.data_table = QtGui.QTableWidget(0, len(self.header_title))
+        self.data_table.setHorizontalHeaderLabels(self.header_title)
+        for rail in self.parent.b.rails_to_display:
+            rowposition = self.data_table.rowCount()
+            self.data_table.insertRow(rowposition)
+            self.data_table.setItem(rowposition, 0, QtGui.QTableWidgetItem(rail['name']))
+
+        for group in self.parent.b.power_groups:
+            rowposition = self.data_table.rowCount()
+            self.data_table.insertRow(rowposition)
+            self.data_table.setItem(rowposition, 0, QtGui.QTableWidgetItem(group['name']))
+            self.data_table.item(rowposition, 0).setBackground(QtGui.QColor(169, 169, 0, 169))
+
+        self.w_data_lay = QtGui.QVBoxLayout()
+        self.rail_control = QtGui.QLabel("Time :")
+        self.w_data_lay.addWidget(self.rail_control)
+        self.w_data_lay.addWidget(self.data_table)
+        self.setLayout(self.w_data_lay)
+
+    def update_data(self, time_coord):
+        """updates data window"""
+        if self.isVisible():
+            self.rail_control.setText("Time : " + str(time_coord) + " sec")
+            i = 0
+            for d_rail in self.parent.b.rails_to_display:
+                rail = next((item for item in self.parent.rail_buf if item['railnumber'] == d_rail['name']), None)
+                voltage = rail['voltage'][1:]
+                current = rail['current'][1:]
+                power = np.empty_like(voltage)
+                power[:, 0] = voltage[:, 0]
+                power[:, 1] = voltage[:, 1] * current[:, 1]
+                x_coord_p = power[:, 0].searchsorted(time_coord)
+                x_coord_v = voltage[:, 0].searchsorted(time_coord)
+                x_coord_c = current[:, 0].searchsorted(time_coord)
+                if x_coord_p:
+                    mp_power = power[x_coord_p - 1, 1]
+                    self.data_table.setItem(i, 1, QtGui.QTableWidgetItem(str(mp_power)))
+                if x_coord_v:
+                    mp_voltage = voltage[x_coord_v - 1, 1]
+                    self.data_table.setItem(i, 2, QtGui.QTableWidgetItem(str(mp_voltage)))
+                if x_coord_c:
+                    mp_current = current[x_coord_c - 1, 1]
+                    self.data_table.setItem(i, 3, QtGui.QTableWidgetItem(str(mp_current)))
+                i += 1
+
+            for j, group in enumerate(self.parent.groups_buf):
+                time_group = group['power'][1:, 0]
+                power = group['power'][1:, 1]
+                x_coord_gp = time_group.searchsorted(time_coord)
+                if x_coord_gp:
+                    mp_gpower = power[x_coord_p - 1]
+                    self.data_table.setItem(i + j + 1, 1, QtGui.QTableWidgetItem(str(mp_gpower)))
+
+
+class GlobalDataWin(QtGui.QDialog):
+    """extern window displaying data collected since app starts"""
+
+    def __init__(self, parent=None):
+        super(GlobalDataWin, self).__init__(parent)
+        self.parent = parent
+        self.setWindowTitle('Global Data Window')
+        self.header_title = ["Rail", "P_avg", "P_min", "P_max", "V_avg", "V_min", "V_max", "I_avg", "I_min", "I_max"]
+        self.data_table = QtGui.QTableWidget(0, len(self.header_title))
+        self.data_table.setHorizontalHeaderLabels(self.header_title)
+        for rail in self.parent.b.rails_to_display:
+            rowposition = self.data_table.rowCount()
+            self.data_table.insertRow(rowposition)
+            self.data_table.setItem(rowposition, 0, QtGui.QTableWidgetItem(rail['name']))
+
+        for group in self.parent.b.power_groups:
+            rowposition = self.data_table.rowCount()
+            self.data_table.insertRow(rowposition)
+            self.data_table.setItem(rowposition, 0, QtGui.QTableWidgetItem(group['name']))
+            self.data_table.item(rowposition, 0).setBackground(QtGui.QColor(169, 169, 0, 169))
+
+        self.w_data_lay = QtGui.QVBoxLayout()
+        self.w_data_lay.addWidget(self.data_table)
+        self.setLayout(self.w_data_lay)
+
+    def update_data(self):
+        """updates data window"""
+        if self.isVisible():
+            i = 0
+            for d_rail in self.parent.b.rails_to_display:
+                rail = next((item for item in self.parent.rail_buf if item['railnumber'] == d_rail['name']), None)
+                voltage = rail['voltage'][1:, 1]
+                current = rail['current'][1:, 1]
+                power = voltage * current
+                p_avg = power.mean()
+                p_min = power.min()
+                p_max = power.max()
+                v_avg = voltage.mean()
+                v_min = voltage.min()
+                v_max = voltage.max()
+                c_avg = current.mean()
+                c_min = current.min()
+                c_max = current.max()
+                self.data_table.setItem(i, 1, QtGui.QTableWidgetItem(str(p_avg)))
+                self.data_table.setItem(i, 2, QtGui.QTableWidgetItem(str(p_min)))
+                self.data_table.setItem(i, 3, QtGui.QTableWidgetItem(str(p_max)))
+                self.data_table.setItem(i, 4, QtGui.QTableWidgetItem(str(v_avg)))
+                self.data_table.setItem(i, 5, QtGui.QTableWidgetItem(str(v_min)))
+                self.data_table.setItem(i, 6, QtGui.QTableWidgetItem(str(v_max)))
+                self.data_table.setItem(i, 7, QtGui.QTableWidgetItem(str(c_avg)))
+                self.data_table.setItem(i, 8, QtGui.QTableWidgetItem(str(c_min)))
+                self.data_table.setItem(i, 9, QtGui.QTableWidgetItem(str(c_max)))
+                i += 1
+
+            for j, group in enumerate(self.parent.groups_buf):
+                power = group['power'][:, 1]
+                gp_avg = power.mean()
+                gp_min = power.min()
+                gp_max = power.max()
+                self.data_table.setItem(i + j + 1, 1, QtGui.QTableWidgetItem(str(gp_avg)))
+                self.data_table.setItem(i + j + 1, 2, QtGui.QTableWidgetItem(str(gp_min)))
+                self.data_table.setItem(i + j + 1, 3, QtGui.QTableWidgetItem(str(gp_max)))
+
+
+class GUI(QtWidgets.QMainWindow):
+    def __init__(self, board, args, parent=None):
+        super(GUI, self).__init__(parent)
+        self.b = board
+        self.args = args
+        self.rail_buf = []
+        self.groups_buf = []
+        self.list_rails_p = []
+        self.list_groups_p = []
+        self.list_rails_v = []
+        self.list_rails_c = []
+        self.list_rails_label = []
+        self.list_groups_label = []
+        self.list_menu = []
+        self.list_menu_g = []
+        self.list_switch_res = []
+        self.list_color_rails = []
+        self.list_color_groups = []
+        self.list_right_lay_n = []
+        self.list_right_lay_group_n = []
+        self.list_right_lay_p = []
+        self.list_right_lay_group_p = []
+        self.list_right_lay_v = []
+        self.list_right_lay_c = []
+        self.central_widget = QtGui.QWidget()
+        self.timer = pg.QtCore.QTimer()
+        self.menu_bar = self.menuBar()
+        self.winmenu = QtGui.QMenu()
+        self.status_bar = self.statusBar()
+        self.spacer = QtGui.QWidget()
+        self.wid_rail_scrollbar = QtGui.QWidget()
+        self.rail_scrollbar = QtWidgets.QScrollArea()
+        self.global_lay = QtGui.QHBoxLayout()
+        self.button_lay = QtGui.QGridLayout()
+        self.group_lay = QtGui.QGridLayout()
+        self.left_lay = QtGui.QVBoxLayout()
+        self.plot_lay = QtGui.QGridLayout()
+        self.right_lay = QtGui.QVBoxLayout()
+        self.right_lay_group = QtGui.QGridLayout()
+        self.right_lay_rail = QtGui.QGridLayout()
+        self.global_graph = pg.PlotWidget(title='Main Window')
+        self.global_graph_vb = pg.ViewBox()
+        self.global_graph_pi = self.global_graph.plotItem
+        self.zoom_graph = pg.PlotWidget(title='Zoom Area')
+        self.zoom_graph_vb = pg.ViewBox()
+        self.zoom_graph_pi = self.zoom_graph.plotItem
+        self.zoom_region = pg.LinearRegionItem()
+        self.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
+        self.thread_data = QtCore.QThread(parent=self)
+        self.worker = Worker(self.b)
+        signal.signal(signal.SIGINT, self.sigint_handler)
+        self.start_setup()
+
+    def sigint_handler(self, *args):
+        """displays a message box if the GUI is exit with CTRL+C command"""
+        if QtGui.QMessageBox.question(None, '', "Are you sure you want to quit?",
+                                      QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                      QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+            drv_ftdi.FLAG_UI_STOP = True
+            self.thread_data.quit()
+            self.thread_data.wait()
+            QtGui.QApplication.quit()
+
+    def closeEvent(self, event):
+        """function called when app is quit by clicking the red cross"""
+        drv_ftdi.FLAG_UI_STOP = True
+        self.thread_data.quit()
+        self.thread_data.wait()
+        QtGui.QApplication.quit()
+
+    def mousemoved_zoom_graph(self, evt):
+        """gets mouse pointer values in zoom graph and updates window values"""
+        pos = evt[0]
+        mousepoint = self.zoom_graph.getPlotItem().getViewBox().mapSceneToView(pos)
+        time_coor = mousepoint.x()
+        self.mouse_pointer_window.update_data(time_coor)
+
+    def mousemove_global_graph(self, evt):
+        """gets mouse pointer values in global graph and updates window values"""
+        pos = evt[0]
+        mousepoint = self.global_graph.getPlotItem().getViewBox().mapSceneToView(pos)
+        time_coor = mousepoint.x()
+        self.mouse_pointer_window.update_data(time_coor)
+
+    def mouse_pointer(self):
+        """enables / disables mouse pointer feature"""
+        if self.en_mouse_pointer.isChecked():
+            self.mouse_p_menu.setVisible(True)
+            self.mouse_pointer_window.setVisible(True)
+            self.proxy1 = pg.SignalProxy(self.zoom_graph.scene().sigMouseMoved, rateLimit=20,
+                                         slot=self.mousemoved_zoom_graph)
+            self.proxy2 = pg.SignalProxy(self.global_graph.scene().sigMouseMoved, rateLimit=20,
+                                         slot=self.mousemove_global_graph)
+        else:
+            self.mouse_p_menu.setVisible(False)
+            self.mouse_pointer_window.setVisible(False)
+            self.proxy1.disconnect()
+            self.proxy2.disconnect()
+
+    def global_update(self):
+        """stores in local buffer the shared variable with measured values"""
+        drv_ftdi.DATA_LOCK.acquire()
+        self.rail_buf = copy.deepcopy(self.b.data_buf)
+        drv_ftdi.DATA_LOCK.release()
+        self.get_power_group()
+        self.traces_update()
+
+    def get_power_group(self):
+        """retrieves power groups data"""
+        self.groups_buf = []
+        for i, group in enumerate(self.b.power_groups):
+            self.groups_buf.append({'group_name': group['name'], 'power': np.zeros([1, 2], dtype=np.float16)})
+            power_group = np.zeros([1, 2], dtype=np.float16)
+            for rail_group in group['rails']:
+                rail = next((item for item in self.rail_buf if item['railnumber'] == rail_group), None)
+                power_rail = np.empty_like(rail['voltage'][1:])
+                power_rail[:, 0] = rail['voltage'][1:, 0]
+                power_rail[:, 1] = (rail['voltage'][1:, 1] * rail['current'][1:, 1])
+                if power_group.shape[0] > power_rail.shape[0]:
+                    power_group.resize(power_rail.shape)
+                elif power_rail.shape[0] - power_group.shape[0] <= 2:
+                    power_rail.resize(power_group.shape)
+                power_group = power_group + power_rail
+            power_group[:, 0] = power_rail[:, 0]
+            self.groups_buf[i]['power'] = power_group
+
+    def traces_update(self):
+        """updates global / zoom plot and updates values"""
+        self.zoom_graph.clear()
+        self.zoom_graph_vb.clear()
+        self.global_graph.clear()
+        self.global_graph_vb.clear()
+
+        self.zoom_graph.blockSignals(True)
+        self.zoom_region.blockSignals(True)
+        self.global_graph.blockSignals(True)
+
+        for i, d_rail in enumerate(self.b.rails_to_display):
+            rail = next((item for item in self.rail_buf if item['railnumber'] == d_rail['name']), None)
+            voltage = rail['voltage'][1:]
+            current = rail['current'][1:]
+            power = np.empty_like(voltage)
+            power[:, 0] = voltage[:, 0]
+            power[:, 1] = voltage[:, 1] * current[:, 1]
+            if self.list_rails_p[i].isChecked():
+                if power.shape[0] > 2:
+                    self.global_graph.plot(power, pen=COLORS[i])
+                    self.zoom_graph.plot(power, pen=COLORS[i])
+            if self.list_rails_v[i].isChecked():
+                if voltage.shape[0] > 2:
+                    self.global_graph_vb.addItem(pg.PlotCurveItem(voltage[:, 0], voltage[:, 1],
+                                                                  pen=pg.mkPen(COLORS[i], width=2,
+                                                                               style=QtCore.Qt.DashDotDotLine)))
+                    self.zoom_graph_vb.addItem(pg.PlotCurveItem(voltage[:, 0], voltage[:, 1],
+                                                                pen=pg.mkPen(COLORS[i], width=2,
+                                                                             style=QtCore.Qt.DashDotDotLine)))
+            if self.list_rails_c[i].isChecked():
+                if current.shape[0] > 2:
+                    self.global_graph.plot(current, pen=pg.mkPen(COLORS[i], style=QtCore.Qt.DotLine))
+                    self.zoom_graph.plot(current, pen=pg.mkPen(COLORS[i], style=QtCore.Qt.DotLine))
+
+        for j, group in enumerate(self.groups_buf):
+            if self.list_groups_p[j].isChecked():
+                if group['power'].shape[0] > 2:
+                    self.global_graph.plot(group['power'], pen=pg.mkPen(GROUPS_COLORS[j], width=3))
+                    self.zoom_graph.plot(group['power'], pen=pg.mkPen(GROUPS_COLORS[j], width=3))
+
+        if self.timer.isActive():
+            time_len = self.rail_buf[0]['voltage'][-1, 0]
+            if time_len < 2:
+                minx = 0
+                maxx = time_len
+            else:
+                minx = time_len - 2
+                maxx = time_len
+            self.zoom_region.setRegion((minx, maxx))
+            self.zoom_graph.setXRange(minx, maxx, padding=0)
+            self.global_graph.enableAutoRange('x')
+        self.global_graph.addItem(self.zoom_region, ignoreBounds=True)
+
+        self.zoom_graph.blockSignals(False)
+        self.zoom_region.blockSignals(False)
+        self.global_graph.blockSignals(False)
+
+        self.global_data_window.update_data()
+        self.update_zoom_data()
+        self.update_right_lay_data()
+
+    def update_right_lay_data(self):
+        """updates average values of plotted rails and groups"""
+        for j, group in enumerate(self.groups_buf):
+            p_avg = group['power'][:, 1].mean()
+            self.list_right_lay_group_p[j].setText(str("%.2f" % p_avg))
+
+        for i, d_rail in enumerate(self.b.rails_to_display):
+            if self.list_rails_p[i].isChecked() or self.list_rails_v[i].isChecked() or self.list_rails_c[i].isChecked():
+                rail = next((item for item in self.rail_buf if item['railnumber'] == d_rail['name']), None)
+                voltage = rail['voltage'][1:, 1]
+                current = rail['current'][1:, 1]
+                power = voltage * current
+                p_avg = power.mean()
+                v_avg = voltage.mean()
+                c_avg = current.mean()
+                self.list_right_lay_p[i].setText(str("%.2f" % p_avg))
+                self.list_right_lay_v[i].setText(str("%.2f" % v_avg))
+                self.list_right_lay_c[i].setText(str("%.2f" % c_avg))
+                self.list_right_lay_n[i].setStyleSheet('color: black')
+                self.list_right_lay_p[i].setStyleSheet('color: black')
+                self.list_right_lay_v[i].setStyleSheet('color: black')
+                self.list_right_lay_c[i].setStyleSheet('color: black')
+            else:
+                self.list_right_lay_n[i].setStyleSheet('color: grey')
+                self.list_right_lay_p[i].setStyleSheet('color: grey')
+                self.list_right_lay_v[i].setStyleSheet('color: grey')
+                self.list_right_lay_c[i].setStyleSheet('color: grey')
+
+    def update_zoom_view(self):
+        """updates zoom view"""
+        self.zoom_graph_vb.setGeometry(self.zoom_graph_pi.vb.sceneBoundingRect())
+        self.zoom_graph_vb.linkedViewChanged(self.zoom_graph_pi.vb, self.zoom_graph_vb.XAxis)
+
+    def update_global_view(self):
+        """updates global view"""
+        self.global_graph_vb.setGeometry(self.global_graph_pi.vb.sceneBoundingRect())
+        self.global_graph_vb.linkedViewChanged(self.global_graph_pi.vb, self.global_graph_vb.XAxis)
+
+    def update_zoom_region(self, window, viewrange):
+        """updates zoom region if user moove zoom graph"""
+        self.zoom_region.blockSignals(True)
+        rgn = viewrange[0]
+        self.zoom_region.setRegion(rgn)
+        self.update_zoom_data()
+        self.zoom_region.blockSignals(False)
+
+    def update_zoom_graph(self):
+        """updates zoom graph if user moove zoom region"""
+        self.zoom_graph.blockSignals(True)
+        self.zoom_region.blockSignals(True)
+
+        self.zoom_region.setZValue(10)
+        minx, maxx = self.zoom_region.getRegion()
+        self.zoom_graph.setXRange(minx, maxx, padding=0)
+        self.update_zoom_data()
+
+        self.zoom_region.blockSignals(False)
+        self.zoom_graph.blockSignals(False)
+
+    def update_zoom_data(self):
+        """updates values in zoom data windows"""
+        minx, maxx = self.zoom_region.getRegion()
+        self.zoom_data_window.update_data(minx, maxx)
+
+    def g_power_changed(self):
+        """signal called when power checkbox state changed"""
+        if not FLAGS['display_all']:
+            self.traces_update()
+
+    def power_changed(self):
+        """signal called when power checkbox state changed"""
+        if not FLAGS['display_all']:
+            self.traces_update()
+
+    def voltage_changed(self):
+        """signal called when voltage checkbox state changed"""
+        if not FLAGS['display_all']:
+            self.traces_update()
+
+    def current_changed(self):
+        """signal called when current checkbox state changed"""
+        if not FLAGS['display_all']:
+            self.traces_update()
+
+    def switch_res_changed(self, index):
+        """switches the resistance and update the corresponding box if it has been correctly done"""
+        done, autorised = self.b.switch_res(self.b.rails_to_display[index], index)
+        if autorised:
+            if done:
+                curr_state = self.list_switch_res[index].text()
+                if curr_state == "L":
+                    new_state = "H"
+                else:
+                    new_state = "L"
+                self.list_switch_res[index].setText(new_state)
+
+    def hide_all_power(self):
+        """hides / shows all power rails depending of the checkbox's state"""
+        FLAGS['display_all'] = True
+        current_state = self.label_p.isChecked()
+        for i, rail in enumerate(self.b.rails_to_display):
+            self.list_rails_p[i].setChecked(current_state)
+        FLAGS['display_all'] = False
+        self.traces_update()
+
+    def hide_all_voltage(self):
+        """hides / shows all voltage rails depending of the checkbox's state"""
+        FLAGS['display_all'] = True
+        current_state = self.label_v.isChecked()
+        for i, rail in enumerate(self.b.rails_to_display):
+            self.list_rails_v[i].setChecked(current_state)
+        FLAGS['display_all'] = False
+        self.traces_update()
+
+    def hide_all_current(self):
+        """hides / shows all current rails depending of the checkbox's state"""
+        FLAGS['display_all'] = True
+        current_state = self.label_c.isChecked()
+        for i, rail in enumerate(self.b.rails_to_display):
+            self.list_rails_c[i].setChecked(current_state)
+        FLAGS['display_all'] = False
+        self.traces_update()
+
+    def hide_rail(self, index):
+        """hides selected rail"""
+        FLAGS['display_all'] = True
+        self.list_rails_p[index].setChecked(False)
+        self.list_rails_v[index].setChecked(False)
+        self.list_rails_c[index].setChecked(False)
+        FLAGS['display_all'] = False
+        self.traces_update()
+
+    def hide_group(self, index):
+        """hides selected group"""
+        self.list_groups_p[index].setChecked(False)
+
+    def change_color(self, index):
+        """updates the color of the selected rail"""
+        COLORS[index] = self.list_color_rails[index].color().name()
+        self.traces_update()
+
+    def change_color_g(self, index):
+        """updates the color of the selected group"""
+        GROUPS_COLORS[index] = self.list_color_groups[index].color().name()
+        self.traces_update()
+
+    def save_pmt(self):
+        """saves the capture as binary file with specified name"""
+        name = QtGui.QFileDialog.getSaveFileName(caption='Save captured data as binary file',
+                                                 filter="PMT captures .pmt (*.pmt)")
+        if name[0]:
+            filename = os.path.splitext(name[0])[0]
+            filename += '.pmt'
+            file_out = open(filename, 'wb')
+            print('Saving to binary file ' + str(filename))
+            pickle.dump(self.rail_buf, file_out, -1)
+            pickle.dump(self.groups_buf, file_out, -1)
+            file_out.close()
+            print('Done.')
+
+    def save_csv(self):
+        """saves the capture as csv file with specified name"""
+        headers = []
+        data = []
+        name = QtGui.QFileDialog.getSaveFileName(caption='Save captured data as csv file', filter='csv')
+        if name[0]:
+            filename = os.path.splitext(name[0])
+            if filename:
+                type_data = ['voltage', 'current', 'power']
+                array_size = self.rail_buf[-1]['voltage'].shape[0]
+                data.append(self.rail_buf[0]['voltage'][1:array_size, 0])
+                headers.append('Time')
+                for d_rail in self.b.rails_to_display:
+                    rail = next((item for item in self.rail_buf if item['railnumber'] == d_rail['name']), None)
+                    for j in range(3):
+                        headers.append(str(d_rail['name'] + "-" + type_data[j]))
+                        if j != 2:
+                            data.append(rail[type_data[j]][1:array_size, 1])
+                        else:
+                            data.append(rail['current'][1:array_size, 1] * rail['voltage'][1:array_size, 1])
+                if self.b.power_groups:
+                    power_group = np.zeros([1, 2], dtype=np.float16)
+                    for group in self.b.power_groups:
+                        headers.append(group['name'] + '-power')
+                        for rail_group in group['rails']:
+                            rail = next((item for item in self.rail_buf if item['railnumber'] == rail_group),
+                                        None)
+                            power_rail = np.empty_like(rail['voltage'][1:])
+                            power_rail[:, 0] = rail['voltage'][1:, 0]
+                            power_rail[:, 1] = (rail['voltage'][1:, 1] * rail['current'][1:, 1])
+                            if power_group.shape[0] > power_rail.shape[0]:
+                                power_group.resize(power_rail.shape)
+                            elif power_rail.shape[0] - power_group.shape[0] <= 2:
+                                power_rail.resize(power_group.shape)
+                            power_group = power_group + power_rail
+                        data.append(power_group[:, 1])
+                np.savetxt(filename[0] + ".csv", np.column_stack(data), delimiter=",", header=', '.join(headers), fmt='%1.4f', comments='')
+                print("Saved data in file " + filename[0] + ".csv")
+
+    def save_png(self):
+        """saves the capture as png picture with specified name"""
+        name = QtGui.QFileDialog.getSaveFileName(caption='Capture plot picture to (.png) file', filter='png')
+        if name[0]:
+            filename = os.path.splitext(name[0])[0]
+            filename += '.png'
+            time.sleep(1)
+            screen = QtGui.QApplication.primaryScreen()
+            screenshot = screen.grabWindow(self.winId())
+            screenshot.save(filename, 'png')
+            print("Saved image to: ", filename)
+
+    def start_record(self):
+        """starts the timer if the user clicks on start button"""
+        self.status_bar.showMessage("Recording")
+        self.timer.start(1000)
+
+    def stop_record(self):
+        """stops the capture and data collection (low-level) if the user clicks on stop button"""
+        self.status_bar.showMessage("Stop Recording")
+
+    def pause_record(self):
+        """stops the capture refresh if the user clicks on pause button"""
+        self.status_bar.showMessage("Pause Recording")
+        self.timer.stop()
+
+    def redo_record(self):
+        """re initialization of the shared variable containing measured values"""
+        drv_ftdi.DATA_LOCK.acquire()
+        for rail in self.b.data_buf:
+            rail['current'] = np.empty([1, 2], dtype=np.float16)
+            rail['voltage'] = np.empty([1, 2], dtype=np.float16)
+        drv_ftdi.T_START = time.time()
+        drv_ftdi.DATA_LOCK.release()
+
+    def sh_global_data_window(self):
+        """shows / hides global data window if user clicks in Windows menu bar item"""
+        current_state = self.global_data_window.isVisible()
+        self.global_data_window.setVisible(not current_state)
+
+    def sh_zoom_data_window(self):
+        """shows / hides zoom data window if user clicks in Windows menu bar item"""
+        current_state = self.zoom_data_window.isVisible()
+        self.zoom_data_window.setVisible(not current_state)
+
+    def sh_mouse_pointer_data_window(self):
+        """shows / hides mouse pointer data window if user clicks in Windows menu bar item"""
+        current_state = self.mouse_pointer_window.isVisible()
+        self.mouse_pointer_window.setVisible(not current_state)
+
+    def board_reset(self):
+        """calls low level function for resetting board"""
+        print('Not implemented yet')
+
+    def board_onoff(self):
+        """calls low level function for suspend / resume board"""
+        print("Not implemented yet")
+
+    def start_setup(self):
+        """setup of the application"""
+        self.setCentralWidget(self.central_widget)
+        self.centralWidget().setLayout(self.global_lay)
+
+        if self.args.load:
+            self.setWindowTitle('Power Measurement Tool Offline')
+            print('Reading %s file...' % self.args.load)
+            if self.args.load.split('.')[1] == 'csv':
+                with open(self.args.load, mode='r') as csv_file:
+                    csv_reader = csv.reader(csv_file, delimiter=',')
+                    self.b.rails_to_display = []
+                    self.b.power_groups = []
+                    first_run = True
+                    for row in csv_reader:
+                        if first_run:
+                            last_el = ''
+                            for r in row[1:]:
+                                if r.split('-')[0] == last_el:
+                                    pass
+                                elif not 'GROUP' in r.split('-')[0]:
+                                    self.b.rails_to_display.append({'name': r.split('-')[0]})
+                                    self.rail_buf.append(
+                                        {'railnumber': r.split('-')[0], 'current': np.empty([1, 2], dtype=np.float16),
+                                         'voltage': np.empty([1, 2], dtype=np.float16)})
+                                    last_el = r.split('-')[0]
+                                else:
+                                    self.b.power_groups.append({'name': r.split('-')[0]})
+                                    self.groups_buf.append(
+                                        {'group_name': r.split('-')[0], 'power': np.zeros([1, 2], dtype=np.float16)})
+                                    last_el = r.split('-')[0]
+                            first_run = False
+                        else:
+                            ind = 0
+                            for i in range(1, len(self.rail_buf) * 3, 3):
+                                tmp_cur = self.rail_buf[ind]['current']
+                                tmp_volt = self.rail_buf[ind]['voltage']
+                                self.rail_buf[ind]['current'] = np.empty([(self.rail_buf[ind]['current'].shape[0] + 1), 2],
+                                                                         dtype=np.float16)
+                                self.rail_buf[ind]['voltage'] = np.empty([(self.rail_buf[ind]['voltage'].shape[0] + 1), 2],
+                                                                         dtype=np.float16)
+                                self.rail_buf[ind]['current'][:tmp_cur.shape[0]] = tmp_cur
+                                self.rail_buf[ind]['voltage'][:tmp_cur.shape[0]] = tmp_volt
+                                self.rail_buf[ind]['current'][tmp_cur.shape[0]:, 0] = row[0]
+                                self.rail_buf[ind]['voltage'][tmp_cur.shape[0]:, 0] = row[0]
+                                self.rail_buf[ind]['voltage'][tmp_cur.shape[0]:, 1] = row[i]
+                                self.rail_buf[ind]['current'][tmp_cur.shape[0]:, 1] = row[i+1]
+                                ind += 1
+
+                            ind_g = 0
+                            for i in range(1, len(self.groups_buf) + 1):
+                                tmp_power = self.groups_buf[ind_g]['power']
+                                self.groups_buf[ind_g]['power'] = np.empty(
+                                    [(self.groups_buf[ind_g]['power'].shape[0] + 1), 2], dtype=np.float16)
+                                self.groups_buf[ind_g]['power'][:tmp_power.shape[0]] = tmp_power
+                                self.groups_buf[ind_g]['power'][tmp_power.shape[0]:, 0] = row[0]
+                                self.groups_buf[ind_g]['power'][tmp_power.shape[0]:, 1] = row[(ind * 3) + i]
+                                ind_g += 1
+
+            elif self.args.load.split('.')[1] == 'pmt':
+                with open(self.args.load, mode='rb') as pkl_file:
+                    self.rail_buf = pickle.load(pkl_file)
+                    self.b.rails_to_display = []
+                    for rail in self.rail_buf:
+                        self.b.rails_to_display.append({'name': rail['railnumber']})
+                    try:
+                        self.groups_buf = pickle.load(pkl_file)
+                        self.b.power_groups = []
+                        for group in self.groups_buf:
+                            self.b.power_groups.append({'name': group['group_name']})
+                    except EOFError:
+                        self.b.power_groups = []
+            else:
+                print('Please enter valid file to load')
+
+        if not self.args.load:
+            self.setWindowTitle('Power Measurement Tool Live Capture')
+            self.menu_bar.setNativeMenuBar(False)
+            self.filemenu = self.menu_bar.addMenu('File')
+            self.save_pmt = self.filemenu.addAction('Save capture as .pmt', self.save_pmt)
+            self.save_csv = self.filemenu.addAction('Save capture as .csv', self.save_csv)
+            self.save_png = self.filemenu.addAction('Save capture as .png', self.save_png)
+            self.exit = self.filemenu.addAction('Exit')
+            self.exit.triggered.connect(self.closeEvent)
+
+        self.settingmenu = self.menu_bar.addMenu('Settings')
+        self.en_mouse_pointer = QtWidgets.QAction("Enable Mouse Pointer", self.settingmenu, checkable=True)
+        self.en_mouse_pointer.setChecked(False)
+        self.en_mouse_pointer.triggered.connect(self.mouse_pointer)
+        self.settingmenu.addAction(self.en_mouse_pointer)
+
+        self.winmenu = self.menu_bar.addMenu('Windows')
+        self.winmenu.addAction("Show / hide Global data window", self.sh_global_data_window)
+        self.winmenu.addAction("Show / hide Zoom data window", self.sh_zoom_data_window)
+        self.mouse_p_menu = self.winmenu.addAction("Show / hide Mouse Pointer data window",
+                                                   self.sh_mouse_pointer_data_window)
+        self.mouse_p_menu.setVisible(False)
+
+        if not self.args.load:
+            self.status_bar.showMessage("Recording")
+            #self.board_controlmenu = self.menu_bar.addMenu('Board Control')
+            #self.board_controlmenu.addAction("Reset board", self.board_reset)
+            #self.board_controlmenu.addAction("On / Off board", self.board_onoff)
+
+            self.tool_bar = self.addToolBar("tt")
+            self.start_but = QtWidgets.QPushButton("")
+            self.start_but.setIcon(QtGui.QIcon('start.png'))
+            self.start_but.setToolTip('Start capture')
+            # self.stop_but = QtWidgets.QPushButton("")
+            # self.stop_but.setIcon(QtGui.QIcon('stop.png'))
+            # self.stop_but.setToolTip('Stop capturing data')
+            self.pause_but = QtWidgets.QPushButton("")
+            self.pause_but.setIcon(QtGui.QIcon('pause.png'))
+            self.pause_but.setToolTip('Stop monitor refresh')
+            self.redo_but = QtWidgets.QPushButton("")
+            self.redo_but.setIcon(QtGui.QIcon('redo.png'))
+            self.redo_but.setToolTip('Re-init capture')
+
+            self.spacer.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+            self.tool_bar.addWidget(self.spacer)
+            self.tool_bar.addWidget(self.start_but)
+            # self.tool_bar.addWidget(self.stop_but)
+            self.tool_bar.addWidget(self.pause_but)
+            self.tool_bar.addWidget(self.redo_but)
+
+            self.start_but.clicked.connect(self.start_record)
+            # self.stop_but.clicked.connect(self.stop_record)
+            self.pause_but.clicked.connect(self.pause_record)
+            self.redo_but.clicked.connect(self.redo_record)
+
+        self.rail_control = QtGui.QLabel("Rails")
+        self.rail_control.setFont(QtGui.QFont("Arial", 8, QtGui.QFont.Black))
+
+        self.button_lay.setAlignment(QtCore.Qt.AlignTop)
+        self.label_loc = QtGui.QLabel("Rail name")
+        self.label_p = QtGui.QCheckBox("P")
+        self.label_v = QtGui.QCheckBox("V")
+        self.label_c = QtGui.QCheckBox("I")
+        self.label_res = QtGui.QLabel("Res")
+        self.label_p.setChecked(True)
+        self.label_p.stateChanged.connect(self.hide_all_power)
+        self.label_v.stateChanged.connect(self.hide_all_voltage)
+        self.label_c.stateChanged.connect(self.hide_all_current)
+
+        self.button_lay.addWidget(self.label_loc, 0, 0)
+        self.button_lay.addWidget(self.label_p, 0, 2)
+        self.button_lay.addWidget(self.label_v, 0, 3)
+        self.button_lay.addWidget(self.label_c, 0, 4)
+        self.button_lay.addWidget(self.label_res, 0, 5)
+
+        for i, rail in enumerate(self.b.rails_to_display):
+            self.list_rails_label.append(QtGui.QPushButton(rail['name']))
+            self.list_menu.append(QtGui.QMenu())
+            self.dis = self.list_menu[i].addAction("disabled")
+            if not self.args.load:
+                self.switch = self.list_menu[i].addAction("Switch resistance")
+                self.list_switch_res.append(QtGui.QLabel('H'))
+                self.button_lay.addWidget(self.list_switch_res[i], i + 1, 5)
+                self.switch.triggered.connect(lambda init, i=i: self.switch_res_changed(i))
+                if rail['rsense'][0] == rail['rsense'][1]:
+                    self.list_switch_res[i].setText('X')
+                    self.switch.setVisible(False)
+            self.list_rails_label[i].setMenu(self.list_menu[i])
+            self.dis.triggered.connect(lambda init, i=i: self.hide_rail(i))
+            self.list_color_rails.append(pg.ColorButton(color=COLORS[i]))
+            self.list_color_rails[i].setMinimumHeight(30)
+            self.list_color_rails[i].setMinimumWidth(30)
+            self.list_rails_p.append(QtGui.QCheckBox())
+            self.list_rails_p[i].setChecked(True)
+            self.list_rails_v.append(QtGui.QCheckBox())
+            self.list_rails_c.append(QtGui.QCheckBox())
+            self.button_lay.addWidget(self.list_rails_label[i], i + 1, 0)
+            self.button_lay.addWidget(self.list_color_rails[i], i + 1, 1)
+            self.button_lay.addWidget(self.list_rails_p[i], i + 1, 2)
+            self.button_lay.addWidget(self.list_rails_v[i], i + 1, 3)
+            self.button_lay.addWidget(self.list_rails_c[i], i + 1, 4)
+            self.list_color_rails[i].sigColorChanged.connect(lambda init, i=i: self.change_color(i))
+            self.list_rails_p[i].stateChanged.connect(self.power_changed)
+            self.list_rails_v[i].stateChanged.connect(self.voltage_changed)
+            self.list_rails_c[i].stateChanged.connect(self.current_changed)
+
+            self.list_right_lay_n.append(QtGui.QLabel(rail['name']))
+            self.list_right_lay_p.append(QtGui.QLabel(""))
+            self.list_right_lay_v.append(QtGui.QLabel(""))
+            self.list_right_lay_c.append(QtGui.QLabel(""))
+            self.right_lay_rail.addWidget(self.list_right_lay_n[i], i + 1, 0)
+            self.right_lay_rail.addWidget(self.list_right_lay_p[i], i + 1, 1)
+            self.right_lay_rail.addWidget(self.list_right_lay_v[i], i + 1, 2)
+            self.right_lay_rail.addWidget(self.list_right_lay_c[i], i + 1, 3)
+
+        self.wid_rail_scrollbar.setLayout(self.button_lay)
+        self.rail_scrollbar.setWidget(self.wid_rail_scrollbar)
+        self.left_lay.addWidget(self.rail_control)
+        self.left_lay.addWidget(self.rail_scrollbar)
+
+        if self.b.power_groups:
+            self.group_control = QtGui.QLabel("Groups")
+            self.group_control.setFont(QtGui.QFont("Arial", 8, QtGui.QFont.Black))
+            self.left_lay.addWidget(self.group_control)
+
+            for i, group in enumerate(self.b.power_groups):
+                self.list_groups_label.append(QtGui.QPushButton(group['name']))
+                self.list_color_groups.append(pg.ColorButton(color=GROUPS_COLORS[i]))
+                self.list_color_groups[i].setMinimumHeight(30)
+                self.list_color_groups[i].setMinimumWidth(30)
+                self.list_menu_g.append(QtGui.QMenu())
+                self.dis_g = self.list_menu_g[i].addAction("disabled")
+                self.list_groups_label[i].setMenu(self.list_menu_g[i])
+                self.dis_g.triggered.connect(lambda init, i=i: self.hide_group(i))
+                self.list_groups_p.append(QtGui.QCheckBox())
+                self.list_groups_p[i].setChecked(False)
+                self.list_groups_p[i].stateChanged.connect(self.g_power_changed)
+                self.group_lay.addWidget(self.list_groups_label[i], i + 1, 0)
+                self.group_lay.addWidget(self.list_color_groups[i], i + 1, 1)
+                self.group_lay.addWidget(self.list_groups_p[i], i + 1, 2)
+                self.list_color_groups[i].sigColorChanged.connect(lambda init, i=i: self.change_color_g(i))
+                self.list_right_lay_group_n.append(QtGui.QLabel(group['name']))
+                self.list_right_lay_group_p.append(QtGui.QLabel(""))
+                self.right_lay_group.addWidget(self.list_right_lay_group_n[i], i + 1, 0)
+                self.right_lay_group.addWidget(self.list_right_lay_group_p[i], i + 1, 1)
+
+            self.group_lay.setAlignment(QtCore.Qt.AlignTop)
+            self.left_lay.addLayout(self.group_lay)
+        self.global_lay.addLayout(self.left_lay)
+
+        self.global_graph.setDownsampling(ds=True, auto=True, mode='peak')
+        self.global_graph.setClipToView(True)
+        self.global_graph.setMouseEnabled(x=True, y=False)
+        self.global_graph_pi.showAxis('right')
+        self.global_graph_pi.scene().addItem(self.global_graph_vb)
+        self.global_graph_pi.getAxis('right').linkToView(self.global_graph_vb)
+        self.global_graph_vb.setXLink(self.global_graph_pi)
+        self.global_graph.setLabels(left='Power (mW) / Current (mA) ', bottom='Time (sec)', right='Voltage (V)')
+        self.global_graph.addLine(y=0)
+        self.global_graph.showGrid(x=True, y=True, alpha=0.30)
+        self.plot_lay.addWidget(self.global_graph, 0, 0)
+
+        self.zoom_graph.setDownsampling(ds=True, auto=True, mode='peak')
+        self.zoom_graph.setClipToView(False)
+        self.zoom_graph.setMouseEnabled(x=True, y=False)
+        self.zoom_graph_pi.showAxis('right')
+        self.zoom_graph_pi.scene().addItem(self.zoom_graph_vb)
+        self.zoom_graph_pi.getAxis('right').linkToView(self.zoom_graph_vb)
+        self.zoom_graph_vb.setXLink(self.zoom_graph_pi)
+        self.zoom_graph.setLabels(left='Power (mW) / Current (mA)', bottom='Time (sec)', right='Voltage (V)')
+        self.zoom_graph.enableAutoRange('y')
+        self.zoom_graph.setAutoVisible(y=True)
+        self.zoom_graph.addLine(y=0)
+        self.zoom_graph.showGrid(x=True, y=True, alpha=0.30)
+        self.plot_lay.addWidget(self.zoom_graph, 1, 0)
+
+        self.zoom_region.setZValue(10)
+        self.global_lay.addLayout(self.plot_lay, 2)
+
+        self.zoom_graph.sigRangeChanged.connect(self.update_zoom_region)
+        self.zoom_region.sigRegionChanged.connect(self.update_zoom_graph)
+        self.zoom_graph_pi.vb.sigResized.connect(self.update_zoom_view)
+        self.global_graph_pi.vb.sigResized.connect(self.update_global_view)
+
+        if self.b.power_groups:
+            self.right_group = QtGui.QLabel("GROUPS")
+            self.right_group.setFont(QtGui.QFont("Arial", 8, QtGui.QFont.Black))
+            self.right_lay_group.addWidget(QtGui.QLabel("Name"), 0, 0)
+            self.right_lay_group.addWidget(QtGui.QLabel("P_avg"), 0, 1)
+            self.right_lay.addWidget(self.right_group)
+            self.right_lay.addLayout(self.right_lay_group)
+
+        self.right_rail = QtGui.QLabel("RAILS")
+        self.right_rail.setFont(QtGui.QFont("Arial", 8, QtGui.QFont.Black))
+        self.right_lay_rail.addWidget(QtGui.QLabel("Name"), 0, 0)
+        self.right_lay_rail.addWidget(QtGui.QLabel("P_avg"), 0, 1)
+        self.right_lay_rail.addWidget(QtGui.QLabel("V_avg"), 0, 2)
+        self.right_lay_rail.addWidget(QtGui.QLabel("I_avg"), 0, 3)
+        self.right_lay.addWidget(self.right_rail)
+        self.right_lay.addLayout(self.right_lay_rail)
+        self.right_lay.addStretch(1)
+
+        self.global_lay.addLayout(self.right_lay)
+
+        self.global_data_window = GlobalDataWin(self)
+        self.zoom_data_window = ZoomDataWin(self)
+        self.mouse_pointer_window = MPDataWin(self)
+        self.zoom_data_window.setWindowTitle('Zoom Data Window')
+        self.mouse_pointer_window.setWindowTitle('Mouse Pointer Data Window')
+        self.global_data_window.show()
+        self.zoom_data_window.show()
+
+        if not self.args.load:
+            self.worker.moveToThread(self.thread_data)
+            self.thread_data.started.connect(self.worker.do_work)
+            self.thread_data.finished.connect(self.thread_data.deleteLater)
+            self.thread_data.start()
+            self.timer.timeout.connect(self.global_update)
+            self.timer.start(1000)
+        else:
+            self.traces_update()
+
+
+def run_ui(board, args):
+    """starts the GUI application"""
+    app = QtGui.QApplication([])
+    display = GUI(board, args)
+    display.show()
+    QtGui.QApplication.instance().exec_()
