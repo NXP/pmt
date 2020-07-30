@@ -1,4 +1,5 @@
 # NXP Power Measurement Tool for i.MX Processors
+![pmt](https://user-images.githubusercontent.com/52401665/88897649-f13e6600-d24b-11ea-8a93-c993e326e10b.PNG)
 
 ## Introduction
 
