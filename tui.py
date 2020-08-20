@@ -128,7 +128,8 @@ def run_ui(board, args):
 
     stdscr.addstr(10 + probe_number, 1, 'Hot-key command:')
     stdscr.addstr(11 + probe_number, 1,
-                  '1 : reset Avg and Max/Min ;  2 : Use PAC avg values ; Rail_letter : Switch res rail ; 0 : quit ')
+                  '1 : reset Avg and Max/Min ;  2 : Use PAC avg values ; 3 : Use PAC bipolar values ; Rail_letter : '
+                  'Switch res rail ; 0 : quit ')
     stdscr.attron(curses.A_BOLD)
     stdscr.addstr(12 + probe_number, 1, 'Bold values are in mV and uA / uW ')
     stdscr.attroff(curses.A_BOLD)
@@ -163,6 +164,8 @@ def run_ui(board, args):
                 time_start = time.time()
             if char == ord('2'):
                 board.pac_hw_filter()
+            if char == ord('3'):
+                board.pac_set_bipolar()
             if chr(char + 1).isalpha():
                 railnumber = char - 65 if char <= 90 else char - 71
                 if railnumber < probe_number:

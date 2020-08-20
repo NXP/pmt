@@ -109,7 +109,7 @@ class Board:
         self.data_buf = []
         self.dev_list_num_i2c = None
         self.dev_list_num_gpio = None
-        self.params = {'hw_filter': False}
+        self.params = {'hw_filter': False, 'bipolar': False}
         print("Starting board(s) detection...")
         boards_infos = self.get_all_board()
         print('Number of board(s) detected: ' + str(len(boards_infos)))
@@ -674,8 +674,34 @@ class Board:
         self.ftdi_i2c_write(pins, 0x00)
         self.ftdi_i2c_stop(pins)
 
+    def pac_set_bipolar(self):
+        self.params['bipolar'] = not self.params['bipolar']
+        FTDI_LOCK.acquire()
+        for index, rail in enumerate(self.board_mapping_power):
+            if rail['pac'][2] != self.board_mapping_power[index - 1]['pac'][2]:
+                self.pca9548_set_channel(rail)
+                add_write = (rail['pac'][1] << 1)
+                self.ftdi_i2c_start(rail)
+                self.ftdi_i2c_write(rail, add_write)
+                self.ftdi_i2c_write(rail, 0x1D)
+                if self.params['bipolar']:
+                    self.ftdi_i2c_write(rail, 0xF0)
+                else:
+                    self.ftdi_i2c_write(rail, 0x00)
+                self.ftdi_i2c_stop(rail)
+        FTDI_LOCK.release()
+
     def pac_hw_filter(self):
         self.params['hw_filter'] = not self.params['hw_filter']
+
+    def process_current(self, current):
+        if self.params['bipolar']:
+            if current >= 32768:
+                return (current - 65536) / 32768 * 100000
+            else:
+                return current / 32768 * 100000
+        else:
+            return current / 65535 * 100000
 
     def block_read(self, pins, index, rail_of_pac):
         """I2C communication for PAC block read and return list of voltage / current"""
@@ -700,8 +726,7 @@ class Board:
             channel = self.board_mapping_power[i + index]['pac'][0]
             volt = (((data[(2 * channel) - 2][0] << 8) + data[(2 * channel) - 1][0]) * 32) / 65535
             voltage.append(volt)
-            curr = (((data[8 + (2 * channel) - 2][0] << 8) + data[8 + (2 * channel) - 1][0]) * 1) / 65535
-            curr *= 100000
+            curr = self.process_current((((data[8 + (2 * channel) - 2][0] << 8) + data[8 + (2 * channel) - 1][0]) * 1))
             current.append(curr)
         return voltage, current
 
@@ -733,6 +758,7 @@ class Board:
                             break
                     rail_per_pac[rail['pac'][2]] = rail_of_pac
         FLAG_UI_READY = True
+        self.pac_set_bipolar()
         T_START = time.time()
         while not FLAG_UI_STOP:
             for index, rail in enumerate(self.board_mapping_power):
