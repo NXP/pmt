@@ -127,7 +127,8 @@ def run_ui(board, args):
             probe_number += 1
 
     stdscr.addstr(10 + probe_number, 1, 'Hot-key command:')
-    stdscr.addstr(11 + probe_number, 1, '1 : reset Avg and Max/Min ; Rail_letter : Switch res rail ; 0 : quit ')
+    stdscr.addstr(11 + probe_number, 1,
+                  '1 : reset Avg and Max/Min ;  2 : Use PAC avg values ; Rail_letter : Switch res rail ; 0 : quit ')
     stdscr.attron(curses.A_BOLD)
     stdscr.addstr(12 + probe_number, 1, 'Bold values are in mV and uA / uW ')
     stdscr.attroff(curses.A_BOLD)
@@ -160,6 +161,8 @@ def run_ui(board, args):
                 p_avg = 0
                 drv_ftdi.T_START = time.time()
                 time_start = time.time()
+            if char == ord('2'):
+                board.pac_hw_filter()
             if chr(char + 1).isalpha():
                 railnumber = char - 65 if char <= 90 else char - 71
                 if railnumber < probe_number:

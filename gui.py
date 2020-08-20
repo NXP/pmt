@@ -723,6 +723,9 @@ class GUI(QtWidgets.QMainWindow):
         """calls low level function for suspend / resume board"""
         print("Not implemented yet")
 
+    def hardware_filter(self):
+        self.b.pac_hw_filter()
+
     def start_setup(self):
         """setup of the application"""
         self.setCentralWidget(self.central_widget)
@@ -809,10 +812,18 @@ class GUI(QtWidgets.QMainWindow):
             self.exit.triggered.connect(self.closeEvent)
 
         self.settingmenu = self.menu_bar.addMenu('Settings')
+        self.settingmenu.setToolTipsVisible(True)
         self.en_mouse_pointer = QtWidgets.QAction("Enable Mouse Pointer", self.settingmenu, checkable=True)
         self.en_mouse_pointer.setChecked(False)
         self.en_mouse_pointer.triggered.connect(self.mouse_pointer)
         self.settingmenu.addAction(self.en_mouse_pointer)
+        if not self.args.load:
+            self.en_hw_filter = QtWidgets.QAction("Enable PAC hardware filter", self.settingmenu, checkable=True)
+            self.en_hw_filter.setToolTip("Use the PAC's rolling average of eight most recent measurements")
+            self.en_bipolar = QtWidgets.QAction("Enable PAC bipolar values", self.settingmenu, checkable=True)
+            self.en_hw_filter.setChecked(False)
+            self.en_hw_filter.triggered.connect(self.hardware_filter)
+            self.settingmenu.addAction(self.en_hw_filter)
 
         self.winmenu = self.menu_bar.addMenu('Windows')
         self.winmenu.addAction("Show / hide Global data window", self.sh_global_data_window)

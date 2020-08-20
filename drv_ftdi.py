@@ -61,6 +61,9 @@ FLAG_UI_READY = False
 FLAG_UI_STOP = False
 T_START = 0
 
+PAC1934_ADDR_REG_VBUS = 0x07
+PAC1934_ADDR_REG_VBUS_AVG = 0x0F
+
 
 def load_library(board_name):
     """load the correct board configuration file depending of the board name"""
@@ -106,6 +109,7 @@ class Board:
         self.data_buf = []
         self.dev_list_num_i2c = None
         self.dev_list_num_gpio = None
+        self.params = {'hw_filter': False}
         print("Starting board(s) detection...")
         boards_infos = self.get_all_board()
         print('Number of board(s) detected: ' + str(len(boards_infos)))
@@ -670,16 +674,23 @@ class Board:
         self.ftdi_i2c_write(pins, 0x00)
         self.ftdi_i2c_stop(pins)
 
+    def pac_hw_filter(self):
+        self.params['hw_filter'] = not self.params['hw_filter']
+
     def block_read(self, pins, index, rail_of_pac):
         """I2C communication for PAC block read and return list of voltage / current"""
         data = []
         voltage = []
         current = []
+        if self.params['hw_filter']:
+            register = PAC1934_ADDR_REG_VBUS_AVG
+        else:
+            register = PAC1934_ADDR_REG_VBUS
         add_write = (pins['pac'][1] << 1) + 0
         add_read = (pins['pac'][1] << 1) + 1
         self.ftdi_i2c_start(pins)
         self.ftdi_i2c_write(pins, add_write)
-        self.ftdi_i2c_write(pins, 0x07)
+        self.ftdi_i2c_write(pins, register)
         self.ftdi_i2c_start(pins)
         self.ftdi_i2c_write(pins, add_read)
         for i in range(15):
