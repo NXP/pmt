@@ -148,9 +148,9 @@ class ZoomDataWin(QtGui.QDialog):
                     gp_avg = power[min_t_gp:max_t_gp].mean()
                     gp_min = power[min_t_gp:max_t_gp].min()
                     gp_max = power[min_t_gp:max_t_gp].max()
-                    self.data_table.setItem(i + j + 1, 1, QtGui.QTableWidgetItem(str(gp_avg)))
-                    self.data_table.setItem(i + j + 1, 2, QtGui.QTableWidgetItem(str(gp_min)))
-                    self.data_table.setItem(i + j + 1, 3, QtGui.QTableWidgetItem(str(gp_max)))
+                    self.data_table.setItem(i + j, 1, QtGui.QTableWidgetItem(str(gp_avg)))
+                    self.data_table.setItem(i + j, 2, QtGui.QTableWidgetItem(str(gp_min)))
+                    self.data_table.setItem(i + j, 3, QtGui.QTableWidgetItem(str(gp_max)))
 
 
 class MPDataWin(QtGui.QDialog):
@@ -273,9 +273,9 @@ class GlobalDataWin(QtGui.QDialog):
                 gp_avg = power.mean()
                 gp_min = power.min()
                 gp_max = power.max()
-                self.data_table.setItem(i + j + 1, 1, QtGui.QTableWidgetItem(str(gp_avg)))
-                self.data_table.setItem(i + j + 1, 2, QtGui.QTableWidgetItem(str(gp_min)))
-                self.data_table.setItem(i + j + 1, 3, QtGui.QTableWidgetItem(str(gp_max)))
+                self.data_table.setItem(i + j, 1, QtGui.QTableWidgetItem(str(gp_avg)))
+                self.data_table.setItem(i + j, 2, QtGui.QTableWidgetItem(str(gp_min)))
+                self.data_table.setItem(i + j, 3, QtGui.QTableWidgetItem(str(gp_max)))
 
 
 class GUI(QtWidgets.QMainWindow):
