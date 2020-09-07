@@ -596,19 +596,6 @@ class GUI(QtWidgets.QMainWindow):
         FLAGS['display_all'] = False
         self.traces_update()
 
-    def hide_rail(self, index):
-        """hides selected rail"""
-        FLAGS['display_all'] = True
-        self.list_rails_p[index].setChecked(False)
-        self.list_rails_v[index].setChecked(False)
-        self.list_rails_c[index].setChecked(False)
-        FLAGS['display_all'] = False
-        self.traces_update()
-
-    def hide_group(self, index):
-        """hides selected group"""
-        self.list_groups_p[index].setChecked(False)
-
     def change_color(self, index):
         """updates the color of the selected rail"""
         COLORS[index] = self.list_color_rails[index].color().name()
@@ -945,17 +932,16 @@ class GUI(QtWidgets.QMainWindow):
         for i, rail in enumerate(self.b.rails_to_display):
             self.list_rails_label.append(QtGui.QPushButton(rail['name']))
             self.list_menu.append(QtGui.QMenu())
-            self.dis = self.list_menu[i].addAction("disabled")
             if not self.args.load:
-                self.switch = self.list_menu[i].addAction("Switch resistance")
-                self.list_switch_res.append(QtGui.QLabel('H'))
-                self.button_lay.addWidget(self.list_switch_res[i], i + 1, 5)
-                self.switch.triggered.connect(lambda init, i=i: self.switch_res_changed(i))
                 if rail['rsense'][0] == rail['rsense'][1]:
-                    self.list_switch_res[i].setText('X')
-                    self.switch.setVisible(False)
-            self.list_rails_label[i].setMenu(self.list_menu[i])
-            self.dis.triggered.connect(lambda init, i=i: self.hide_rail(i))
+                    self.list_switch_res.append(QtGui.QLabel('X'))
+                else:
+                    self.switch = self.list_menu[i].addAction("Switch resistance")
+                    self.list_rails_label[i].setMenu(self.list_menu[i])
+                    self.list_switch_res.append(QtGui.QLabel('H'))
+                    self.switch.triggered.connect(lambda init, i=i: self.switch_res_changed(i))
+                self.button_lay.addWidget(self.list_switch_res[i], i + 1, 5)
+
             self.list_color_rails.append(pg.ColorButton(color=COLORS[i]))
             self.list_color_rails[i].setMinimumHeight(30)
             self.list_color_rails[i].setMinimumWidth(30)
@@ -998,9 +984,7 @@ class GUI(QtWidgets.QMainWindow):
                 self.list_color_groups[i].setMinimumHeight(30)
                 self.list_color_groups[i].setMinimumWidth(30)
                 self.list_menu_g.append(QtGui.QMenu())
-                self.dis_g = self.list_menu_g[i].addAction("disabled")
                 self.list_groups_label[i].setMenu(self.list_menu_g[i])
-                self.dis_g.triggered.connect(lambda init, i=i: self.hide_group(i))
                 self.list_groups_p.append(QtGui.QCheckBox())
                 self.list_groups_p[i].setChecked(False)
                 self.list_groups_p[i].stateChanged.connect(self.g_power_changed)
