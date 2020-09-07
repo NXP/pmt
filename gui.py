@@ -1060,8 +1060,6 @@ class GUI(QtWidgets.QMainWindow):
         self.mouse_pointer_window = MPDataWin(self)
         self.zoom_data_window.setWindowTitle('Zoom Data Window')
         self.mouse_pointer_window.setWindowTitle('Mouse Pointer Data Window')
-        self.global_data_window.show()
-        self.zoom_data_window.show()
 
         if not self.args.load:
             self.worker.moveToThread(self.thread_data)
