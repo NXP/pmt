@@ -346,6 +346,7 @@ class GUI(QtWidgets.QMainWindow):
         if QtGui.QMessageBox.question(None, '', "Are you sure you want to quit?",
                                       QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
                                       QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+            self.worker.resume_thread()
             drv_ftdi.FLAG_UI_STOP = True
             self.thread_data.quit()
             self.thread_data.wait()
@@ -353,6 +354,7 @@ class GUI(QtWidgets.QMainWindow):
 
     def closeEvent(self, event):
         """function called when app is quit by clicking the red cross"""
+        self.worker.resume_thread()
         drv_ftdi.FLAG_UI_STOP = True
         self.thread_data.quit()
         self.thread_data.wait()
