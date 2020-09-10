@@ -332,6 +332,9 @@ class GUI(QtWidgets.QMainWindow):
         self.zoom_graph_vb = pg.ViewBox()
         self.zoom_graph_pi = self.zoom_graph.plotItem
         self.zoom_region = pg.LinearRegionItem()
+        self.stop_region = []
+        self.stop = 0
+        self.resume = 0
         self.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
         self.thread_data = QtCore.QThread(parent=self)
         self.worker = Worker(self.b)
@@ -464,6 +467,9 @@ class GUI(QtWidgets.QMainWindow):
             self.zoom_graph.setXRange(minx, maxx, padding=0)
             self.global_graph.enableAutoRange('x')
         self.global_graph.addItem(self.zoom_region, ignoreBounds=True)
+
+        for reg in self.stop_region:
+            self.global_graph.addItem(reg, ignoreBounds=True)
 
         self.zoom_graph.blockSignals(False)
         self.zoom_region.blockSignals(False)
@@ -675,6 +681,7 @@ class GUI(QtWidgets.QMainWindow):
         """starts the timer if the user clicks on start button"""
         if self.state != 'pause':
             if self.state == 'reinit':
+                self.stop_region.clear()
                 drv_ftdi.T_START = time.time()
             self.status_bar.showMessage("Recording")
             self.worker.resume_thread()
@@ -683,6 +690,12 @@ class GUI(QtWidgets.QMainWindow):
             self.start_but.setChecked(True)
             self.stop_but.setChecked(False)
             self.redo_but.setChecked(False)
+            if self.state == 'stop':
+                self.resume = time.time() - drv_ftdi.T_START
+                region = pg.LinearRegionItem(brush=QtGui.QBrush(QtGui.QColor(255, 0, 0, 50)), movable=False)
+                self.zoom_region.setZValue(10)
+                region.setRegion((self.stop, self.resume))
+                self.stop_region.append(region)
             self.state = 'start'
         else:
             self.start_but.setChecked(True)
