@@ -753,11 +753,15 @@ class GUI(QtWidgets.QMainWindow):
         """shows / hides global data window if user clicks in Windows menu bar item"""
         current_state = self.global_data_window.isVisible()
         self.global_data_window.setVisible(not current_state)
+        if self.global_data_window.isVisible():
+            self.global_data_window.update_data()
 
     def sh_zoom_data_window(self):
         """shows / hides zoom data window if user clicks in Windows menu bar item"""
         current_state = self.zoom_data_window.isVisible()
         self.zoom_data_window.setVisible(not current_state)
+        if self.zoom_data_window.isVisible():
+            self.update_zoom_data()
 
     def sh_mouse_pointer_data_window(self):
         """shows / hides mouse pointer data window if user clicks in Windows menu bar item"""
