@@ -118,6 +118,9 @@ $ python3 main.py monitor -b imx8dxlevk -t 15 -d test.csv
 - Zoom region with mean power / mean voltage / mean current data.
 - Data since the application starts.
 - Average values of plotted rails.
+- Stop / resume data acquisition with stop region displayed.
+- PAC's bipolar mode.
+- PAC's hardware filter.
 
 ### TUI features
 
@@ -125,6 +128,8 @@ $ python3 main.py monitor -b imx8dxlevk -t 15 -d test.csv
 - Switch resistor value of each rail.
 - Reset values.
 - Set monitor duration.
+- PAC's bipolar mode.
+- PAC's hardware filter.
 
 
 ### Monitor mode

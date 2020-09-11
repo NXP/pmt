@@ -35,7 +35,7 @@ If you want to read only a specific subset of rail(s), please modify the below v
 You can also specify power group.
 
 Example for iMX8DXL EVK:
-rails_to_read = ['5V0', '3V3_USB', 'VDD_SNVS1', 'GROUP_PLATFORM']
+RAILS_TO_PROBE = ['5V0', '3V3_USB', 'VDD_SNVS1', 'GROUP_PLATFORM']
 For rails' name please refer to board_name.py in directory board_configuration, structure mapping_power
 '''
 RAILS_TO_PROBE = ['all']

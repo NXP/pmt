@@ -37,7 +37,7 @@ import gui
 import tui
 
 
-PROGRAM_VERSION = 'PMT 1.0'
+PROGRAM_VERSION = 'PMT 1.1'
 
 LOG_LEVEL = logging.WARNING
 
