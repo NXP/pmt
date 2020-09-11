@@ -57,8 +57,8 @@ logging.basicConfig(level=LOG_LEVEL)
 DATA_LOCK = threading.Lock()
 FTDI_LOCK = threading.Lock()
 CURR_RSENSE = {}
-FLAG_UI_READY = False
 FLAG_UI_STOP = False
+FLAG_PAUSE_CAPTURE = False
 T_START = 0
 
 PAC1934_ADDR_REG_VBUS = 0x07
@@ -732,7 +732,6 @@ class Board:
 
     def get_data(self):
         """reads PAC while the app doesn't stop and update shared variable with power/voltage/current"""
-        global FLAG_UI_READY
         global T_START
         rail_per_pac = {}
         first_probe = True
@@ -757,10 +756,11 @@ class Board:
                         else:
                             break
                     rail_per_pac[rail['pac'][2]] = rail_of_pac
-        FLAG_UI_READY = True
         self.pac_set_bipolar()
         T_START = time.time()
         while not FLAG_UI_STOP:
+            while FLAG_PAUSE_CAPTURE:
+                time.sleep(0.2)
             for index, rail in enumerate(self.board_mapping_power):
                 if len(self.board_mapping_power) == 1:
                     FTDI_LOCK.acquire()
@@ -806,6 +806,8 @@ class Board:
                         t_stop = time.time()
                         DATA_LOCK.acquire()
                         for i in range(rail_per_pac[rail['pac'][2]]):
+                            if FLAG_PAUSE_CAPTURE:
+                                break
                             tmp_cur = self.data_buf[index + i]['current']
                             tmp_volt = self.data_buf[index + i]['voltage']
                             self.data_buf[index + i]['current'] = np.empty(

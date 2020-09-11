@@ -68,6 +68,12 @@ class Worker(QtCore.QObject):
         """runs function for collecting data"""
         self.board.get_data()
 
+    def pause_thread(self):
+        drv_ftdi.FLAG_PAUSE_CAPTURE = True
+
+    def resume_thread(self):
+        drv_ftdi.FLAG_PAUSE_CAPTURE = False
+
 
 class ZoomDataWin(QtGui.QDialog):
     """extern window displaying data in zoom region"""
@@ -302,6 +308,7 @@ class GUI(QtWidgets.QMainWindow):
         self.list_right_lay_group_p = []
         self.list_right_lay_v = []
         self.list_right_lay_c = []
+        self.state = 'start'
         self.central_widget = QtGui.QWidget()
         self.timer = pg.QtCore.QTimer()
         self.menu_bar = self.menuBar()
@@ -679,26 +686,66 @@ class GUI(QtWidgets.QMainWindow):
 
     def start_record(self):
         """starts the timer if the user clicks on start button"""
-        self.status_bar.showMessage("Recording")
-        self.timer.start(1000)
+        if self.state != 'pause':
+            if self.state == 'reinit':
+                drv_ftdi.T_START = time.time()
+            self.status_bar.showMessage("Recording")
+            self.worker.resume_thread()
+            self.timer.start(1000)
+            self.pause_but.setChecked(False)
+            self.start_but.setChecked(True)
+            self.stop_but.setChecked(False)
+            self.redo_but.setChecked(False)
+            self.state = 'start'
+        else:
+            self.start_but.setChecked(True)
 
     def stop_record(self):
         """stops the capture and data collection (low-level) if the user clicks on stop button"""
-        self.status_bar.showMessage("Stop Recording")
+        if self.state != 'stop':
+            self.status_bar.showMessage("Stop Recording")
+            self.worker.pause_thread()
+            self.pause_but.setChecked(False)
+            self.start_but.setChecked(False)
+            self.stop_but.setChecked(True)
+            self.redo_but.setChecked(False)
+            self.timer.stop()
+            self.state = 'stop'
+            self.stop = time.time() - drv_ftdi.T_START
+        else:
+            self.stop_but.setChecked(True)
 
     def pause_record(self):
         """stops the capture refresh if the user clicks on pause button"""
-        self.status_bar.showMessage("Pause Recording")
-        self.timer.stop()
+        if self.state != 'stop':
+            if self.state != 'pause':
+                self.status_bar.showMessage("Pause Recording")
+                self.pause_but.setChecked(True)
+                self.start_but.setChecked(True)
+                self.stop_but.setChecked(False)
+                self.redo_but.setChecked(False)
+                self.timer.stop()
+                self.state = 'pause'
+            else:
+                self.status_bar.showMessage("Recording")
+                self.timer.start(1000)
+                self.state = 'start'
+        else:
+            self.pause_but.setChecked(False)
 
     def redo_record(self):
         """re initialization of the shared variable containing measured values"""
+        self.stop_record()
         drv_ftdi.DATA_LOCK.acquire()
         for rail in self.b.data_buf:
             rail['current'] = np.empty([1, 2], dtype=np.float16)
             rail['voltage'] = np.empty([1, 2], dtype=np.float16)
-        drv_ftdi.T_START = time.time()
         drv_ftdi.DATA_LOCK.release()
+        self.zoom_graph.clear()
+        self.zoom_graph_vb.clear()
+        self.global_graph.clear()
+        self.global_graph_vb.clear()
+        self.state = 'reinit'
 
     def sh_global_data_window(self):
         """shows / hides global data window if user clicks in Windows menu bar item"""
@@ -847,27 +894,31 @@ class GUI(QtWidgets.QMainWindow):
 
             self.tool_bar = self.addToolBar("tt")
             self.start_but = QtWidgets.QPushButton("")
-            self.start_but.setIcon(QtGui.QIcon('start.png'))
+            self.start_but.setIcon(QtGui.QIcon('record.png'))
             self.start_but.setToolTip('Start capture')
-            # self.stop_but = QtWidgets.QPushButton("")
-            # self.stop_but.setIcon(QtGui.QIcon('stop.png'))
-            # self.stop_but.setToolTip('Stop capturing data')
+            self.stop_but = QtWidgets.QPushButton("")
+            self.stop_but.setIcon(QtGui.QIcon('stop.png'))
+            self.stop_but.setToolTip('Stop capturing data')
             self.pause_but = QtWidgets.QPushButton("")
             self.pause_but.setIcon(QtGui.QIcon('pause.png'))
             self.pause_but.setToolTip('Stop monitor refresh')
             self.redo_but = QtWidgets.QPushButton("")
-            self.redo_but.setIcon(QtGui.QIcon('redo.png'))
+            self.redo_but.setIcon(QtGui.QIcon('trash.png'))
             self.redo_but.setToolTip('Re-init capture')
+
+            self.start_but.setCheckable(True)
+            self.pause_but.setCheckable(True)
+            self.stop_but.setCheckable(True)
 
             self.spacer.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
             self.tool_bar.addWidget(self.spacer)
             self.tool_bar.addWidget(self.start_but)
-            # self.tool_bar.addWidget(self.stop_but)
+            self.tool_bar.addWidget(self.stop_but)
             self.tool_bar.addWidget(self.pause_but)
             self.tool_bar.addWidget(self.redo_but)
 
             self.start_but.clicked.connect(self.start_record)
-            # self.stop_but.clicked.connect(self.stop_record)
+            self.stop_but.clicked.connect(self.stop_record)
             self.pause_but.clicked.connect(self.pause_record)
             self.redo_but.clicked.connect(self.redo_record)
 
@@ -1035,6 +1086,7 @@ class GUI(QtWidgets.QMainWindow):
             self.thread_data.start()
             self.timer.timeout.connect(self.global_update)
             self.timer.start(1000)
+            self.start_but.setChecked(True)
         else:
             self.traces_update()
 
