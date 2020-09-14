@@ -246,7 +246,7 @@ def run_ui(board, args):
                     curr_time = time.time() - time_start
                     stdscr.addstr(7 + probe_number, 1, 'Duration : ' + str("%.2f" % curr_time) + ' sec')
                     stdscr.clrtoeol()
-                    stdscr.addstr(8 + probe_number, 1, 'Frequency : ' + str("%.1f" % (rail['voltage'].shape[0] / rail['voltage'][-1, 0])) + ' Hz')
+                    stdscr.addstr(8 + probe_number, 1, 'Frequency : ' + str("%.1f" % (rail['voltage'].shape[0] / rail['voltage'][-1, 0])) + ' Hz ; avg_values: ' + str(board.params['hw_filter']) + ' ; bipolar mode: ' + str(board.params['bipolar']))
                     stdscr.clrtoeol()
                     rail_data.clear()
                     stdscr.refresh()
