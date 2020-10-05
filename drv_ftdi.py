@@ -86,7 +86,7 @@ class Board:
         self.dev_list_num_gpio = None
         self.params = {'hw_filter': False, 'bipolar': False}
         self.eeprom = eeprom.FTDIEeprom(args)
-        if self.args.command == 'eeprom' or self.args.command == 'lsftdi':
+        if self.args.command == 'eeprom' or self.args.command == 'lsftdi' or (self.args.command == 'monitor' and self.args.load):
             pass
         else:
             self.init_class()
