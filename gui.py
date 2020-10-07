@@ -60,6 +60,43 @@ pg.setConfigOption('background', 'w')
 pg.setConfigOption('foreground', 'k')
 
 
+class SplashScreen():
+    def __init__(self):
+        super().__init__()
+        app = QtGui.QApplication([])
+        self.windows = QtGui.QDialog()
+        self.windows.setWindowFlags(self.windows.windowFlags() | QtCore.Qt.CustomizeWindowHint)
+        self.windows.setWindowFlags(self.windows.windowFlags() & ~QtCore.Qt.WindowCloseButtonHint)
+        self.windows.setFixedSize(600, 380)
+        self.windows.setStyleSheet("background-color: white;")
+        #self.title = "Loading"
+        self.text = QtGui.QLabel('Power Measurement Tool (PMT)')
+        self.text.setAlignment(QtCore.Qt.AlignCenter)
+        self.text.setStyleSheet("background-color: grey;"
+                                "color: black;"
+                                "font: bold 32px;"
+                               )
+        self.text1 = QtGui.QLabel(PROGRAM_VERSION + ' - ' + COPYRIGHT_INFO)
+        self.text1.setAlignment(QtCore.Qt.AlignCenter)
+        self.text1.setStyleSheet("color: black;"
+                                 "font: bold 24px;"
+                                )
+        self.pic = QtGui.QLabel(self.windows)
+        self.pic.setAlignment(QtCore.Qt.AlignCenter)
+        self.pic.setPixmap(QtGui.QPixmap("nxp.png"))
+        self.timer = pg.QtCore.QTimer()
+        self.timer.setSingleShot(True)
+        self.layout = QtGui.QVBoxLayout()
+        self.windows.setLayout(self.layout)
+        #self.windows.setWindowTitle(self.title)
+        self.layout.addWidget(self.text)
+        self.layout.addWidget(self.pic)
+        self.layout.addWidget(self.text1)
+        self.windows.show()
+        self.timer.singleShot(2500, app.quit)
+        app.exec_()
+
+
 class Worker(QtCore.QObject):
     """creates worker class for thread"""
 

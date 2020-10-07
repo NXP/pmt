@@ -177,6 +177,7 @@ def main():
             logging.warning('Please enter valid GPIO name')
 
     if args.command == 'monitor':
+        splash_screen = gui.SplashScreen()
         board = drv_ftdi.Board(args)
         if (args.mode == 'tui') or (args.mode is None):
             tui.run_ui(board, args)
