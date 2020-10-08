@@ -28,30 +28,19 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import sys
-import time
 import logging
-import platform
+import sys
 import threading
+import time
 import os
 import importlib.util
 
 import numpy as np
-
-import ftdi_def as ft_def
+import common_function as common_func
+from board_configuration import common
+import eeprom
 import program_config
 from main import LOG_LEVEL
-from board_configuration import common
-
-
-if platform.system() == 'Linux':
-    import pylibftdi as ftdi
-
-    OS = 'Linux'
-elif platform.system() == 'Windows':
-    import ftd2xx as ftdi
-
-    OS = 'Windows'
 
 logging.basicConfig(level=LOG_LEVEL)
 DATA_LOCK = threading.Lock()
@@ -80,23 +69,9 @@ def load_library(board_name):
             return board_c
 
 
-def list_connected_devices():
-    """lists devices connected to the PC host"""
-    if OS == 'Linux':
-        dev_list = ftdi.Driver().list_devices()
-        location = len(dev_list)
-        for i, device in enumerate(dev_list):
-            location -= 1
-            print('board[', i, '] - location:', location, '-->', (device))
-    elif OS == 'Windows':
-        num_of_dev = int(ftdi.createDeviceInfoList() / 4)
-        for i in range(num_of_dev):
-            dev_list = ftdi.getDeviceInfoDetail(i)
-            print('board[', i, '] - location:', dev_list['index'], '-->', dev_list['description'])
-
-
 class Board:
     def __init__(self, args):
+        self.args = args
         self.board_mapping_power = []
         self.rails_to_display = []
         self.power_groups = []
@@ -110,13 +85,20 @@ class Board:
         self.dev_list_num_i2c = None
         self.dev_list_num_gpio = None
         self.params = {'hw_filter': False, 'bipolar': False}
+        self.eeprom = eeprom.FTDIEeprom(args)
+        if self.args.command == 'eeprom' or self.args.command == 'lsftdi':
+            pass
+        else:
+            self.init_class()
+
+    def init_class(self):
         print("Starting board(s) detection...")
         boards_infos = self.get_all_board()
         print('Number of board(s) detected: ' + str(len(boards_infos)))
         if len(boards_infos) > 1:
-            if (args.board and args.id == -1) or (args.id != -1 and not args.board):
+            if (self.args.board and self.args.id == -1) or (self.args.id != -1 and not self.args.board):
                 board_found = next(
-                    (item for item in boards_infos if item['name'] == args.board or item['loc_id'] == args.id),
+                    (item for item in boards_infos if item['name'] == self.args.board or item['loc_id'] == self.args.id),
                     None)
                 if board_found:
                     self.name = board_found['name']
@@ -124,9 +106,9 @@ class Board:
                 else:
                     logging.error("Board name or id entered doesn't match with detected ones... Leaving")
                     sys.exit()
-            elif args.board and args.id != -1:
+            elif self.args.board and self.args.id != -1:
                 board_found = next(
-                    (item for item in boards_infos if item['name'] == args.board and item['loc_id'] == args.id),
+                    (item for item in boards_infos if item['name'] == self.args.board and item['loc_id'] == self.args.id),
                     None)
                 if board_found:
                     self.name = board_found['name']
@@ -139,15 +121,15 @@ class Board:
                     "2 or more boards are detected, please specify at least board name or id (lsftdi command)... Leaving")
                 sys.exit()
         elif len(boards_infos) == 1:
-            if args.board:
-                if boards_infos[0]['name'] == args.board:
+            if self.args.board:
+                if boards_infos[0]['name'] == self.args.board:
                     self.name = boards_infos[0]['name']
                     self.id = 0
                 else:
                     logging.error('Board connected is not the one passed in command line... Leaving')
                     sys.exit()
-            elif args.id != -1:
-                if args.id == 0:
+            elif self.args.id != -1:
+                if self.args.id == 0:
                     self.name = boards_infos[0]['name']
                     self.id = 0
                 else:
@@ -177,7 +159,8 @@ class Board:
                 if name == group['name']:
                     self.power_groups.append(group)
                     for group_rail in group['rails']:
-                        add_rail = next((item for item in self.board_c.mapping_power if item['name'] == group_rail), None)
+                        add_rail = next((item for item in self.board_c.mapping_power if item['name'] == group_rail),
+                                        None)
                         if add_rail in self.board_mapping_power:
                             pass
                         else:
@@ -204,93 +187,59 @@ class Board:
             print('- ' + gpio_name['name'])
 
     def get_all_board(self):
-        """checks if connected boards to PC host are supported by the program and return a list"""
         boards_infos = []
-        dev_list = []
-        if OS == 'Linux':
-            dev_list = ftdi.Driver().list_devices()
-            for num in range(len(dev_list)):
-                for gpio in common.board_eeprom:
-                    ret = self.get_eeprom_board(gpio, num)
-                    if not ret:
-                        boards_infos.append({'name': gpio['board_name'], 'loc_id': num, 'board_num': num})
-            return boards_infos
-        elif OS == 'Windows':
-            dev_list = ftdi.listDevices()
-            if dev_list:
-                self.dev_list_num_i2c = [i for i, x in enumerate(dev_list) if x == b'B']
-                self.dev_list_num_gpio = [i for i, x in enumerate(dev_list) if x == b'A']
-                for num in range(len(self.dev_list_num_i2c)):
-                    for gpio in common.board_eeprom:
-                        ret = self.get_eeprom_board(gpio, num)
-                        if not ret:
-                            boards_infos.append({'name': gpio['board_name'], 'loc_id': num, 'board_num': num})
-            return boards_infos
+        dev_list = self.eeprom.list_eeprom_devices()
+        for ind in range(len(dev_list)):
+            type, desc = self.eeprom.detect_type(dev_list[ind])
+            if type == 1: # i2c eeprom
+                for pins in common.board_eeprom:
+                    self.eeprom.init_system(desc, ind)
+                    soc = self.eeprom.read_eeprom_soc_id(pins)
+                    self.eeprom.deinit()
+                    if soc != 'Unknown':
+                        boards_infos.append({'name': soc, 'loc_id': ind})
+                        break
+            else: # serial eeprom
+                self.eeprom.init_system(desc, ind)
+                soc = self.eeprom.read_eeprom_soc_id()
+                self.eeprom.deinit()
+                if soc != 'Unknown':
+                    boards_infos.append({'name': soc, 'loc_id': ind})
+            time.sleep(0.2)
+        return boards_infos
+
+    def board_eeprom_read(self):
+        self.eeprom.read(self.args.id)
+
+    def board_eeprom_write(self):
+        self.eeprom.write(self.args.id)
 
     def get_eeprom_board(self, pins, board_id):
         """checks if the eeprom is present on the current board"""
-        self.ftdic = self.ftdi_open(board_id, 1)
-        self.ftdic_setbitmode(0x0, 0x00)
-        self.ftdic_setbitmode(0x0, 0x02)
-        self.ftdi_i2c_init(pins)
+        self.ftdic = common_func.ftdi_open(board_id, 1)
+        common_func.ftdic_setbitmode(self.ftdic, 0x0, 0x00)
+        common_func.ftdic_setbitmode(self.ftdic, 0x0, 0x02)
+        common_func.ftdi_i2c_init(self.ftdic, pins)
         add_write = (pins['at24cxx'][0] << 1) + 0
-        self.ftdi_i2c_start(pins)
-        if self.ftdi_i2c_write(pins, add_write):
-            self.ftdi_i2c_stop(pins)
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        if common_func.ftdi_i2c_write(self.ftdic, pins, add_write):
+            common_func.ftdi_i2c_stop(self.ftdic, pins)
             self.ftdic.close()
             return 1
         else:
-            self.ftdi_i2c_stop(pins)
+            common_func.ftdi_i2c_stop(self.ftdic, pins)
             self.ftdic.close()
             return 0
-
-    def ftdic_write(self, buf):
-        """FTDI write function depending of the current OS"""
-        if OS == 'Linux':
-            self.ftdic.write(bytes(buf))
-        elif OS == 'Windows':
-            self.ftdic.write(buf)
-
-    def ftdic_write_gpio(self, buf):
-        """FTDI write gpio function depending of the current OS"""
-        if OS == 'Linux':
-            self.ftdic.write(bytes([buf]))
-        elif OS == 'Windows':
-            self.ftdic.write(bytes([buf]))
-
-    def ftdic_read_gpio(self):
-        """FTDI read depending function of the current OS"""
-        if OS == 'Linux':
-            return self.ftdic.read(1)[0]
-        elif OS == 'Windows':
-            return self.ftdic.getBitMode()
-
-    def ftdi_open(self, board_id, channel):
-        """opens FTDI device function depending of the current OS"""
-        if OS == 'Linux':
-            return ftdi.Device(device_index=board_id, interface_select=channel + 1)
-        elif OS == 'Windows':
-            if channel:
-                return ftdi.open(self.dev_list_num_i2c[board_id])
-            else:
-                return ftdi.open(self.dev_list_num_gpio[board_id])
-
-    def ftdic_setbitmode(self, out_pins, value):
-        """"FTDI set bitmode function depending of the current OS"""
-        if OS == 'Linux':
-            self.ftdic.ftdi_fn.ftdi_set_bitmode(out_pins, value)
-        elif OS == 'Windows':
-            self.ftdic.setBitMode(out_pins, value)
 
     def pca9548_set_channel(self, pins):
         """I2C communication for setting the channel of the PCA"""
         logging.debug('pca9548_set_channel')
         add_write = (pins['pca9548'][1]) << 1
         change_channel_cmd = 1 << pins['pca9548'][0]
-        self.ftdi_i2c_start(pins)
-        self.ftdi_i2c_write(pins, add_write)
-        self.ftdi_i2c_write(pins, change_channel_cmd)
-        self.ftdi_i2c_stop(pins)
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
+        common_func.ftdi_i2c_write(self.ftdic, pins, change_channel_cmd)
+        common_func.ftdi_i2c_stop(self.ftdic, pins)
 
     def pca_write(self, pins, gpio_value):
         """I2C communication for writing new value to the PCA"""
@@ -299,27 +248,27 @@ class Board:
         add_write = (pins['pca6416'][0] << 1) + 0
         add_read = (pins['pca6416'][0] << 1) + 1
         conf_cmd = (pins['pca6416'][1]) + 0x02
-        self.ftdi_i2c_start(pins)
-        status = self.ftdi_i2c_write(pins, add_write)
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
         if status != 0: return status
-        status = self.ftdi_i2c_write(pins, conf_cmd)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, conf_cmd)
         if status != 0: return status
-        self.ftdi_i2c_start(pins)
-        status = self.ftdi_i2c_write(pins, add_read)
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, add_read)
         if status != 0: return status
-        current_config = self.ftdi_i2c_read(pins, 1)
+        current_config = common_func.ftdi_i2c_read(self.ftdic, pins, 1)
         logging.debug('Current PCA GPIO configuration: ' + hex(current_config[0]))
-        self.ftdi_i2c_stop(pins)
+        common_func.ftdi_i2c_stop(self.ftdic, pins)
         output_data = (current_config[0] & ~pins['pca6416'][2]) | (gpio_value & pins['pca6416'][2])
         logging.debug('Modified PCA GPIO configuration: ' + hex(output_data))
-        self.ftdi_i2c_start(pins)
-        status = self.ftdi_i2c_write(pins, add_write)
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
         if status != 0: return status
-        status = self.ftdi_i2c_write(pins, conf_cmd)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, conf_cmd)
         if status != 0: return status
-        status = self.ftdi_i2c_write(pins, output_data)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, output_data)
         if status != 0: return status
-        self.ftdi_i2c_stop(pins)
+        common_func.ftdi_i2c_stop(self.ftdic, pins)
 
     def pca6416_set_direction(self, pins):
         """I2C communication for defining PCA pins as I/O"""
@@ -327,27 +276,27 @@ class Board:
         add_write = (pins['pca6416'][0] << 1) + 0
         add_read = (pins['pca6416'][0] << 1) + 1
         conf_cmd = (pins['pca6416'][1]) + 0x06
-        self.ftdi_i2c_start(pins)
-        status = self.ftdi_i2c_write(pins, add_write)
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
         if status != 0: return status
-        status = self.ftdi_i2c_write(pins, conf_cmd)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, conf_cmd)
         if status != 0: return status
-        self.ftdi_i2c_start(pins)
-        status = self.ftdi_i2c_write(pins, add_read)
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, add_read)
         if status != 0: return status
-        current_confg = self.ftdi_i2c_read(pins, 1)
+        current_confg = common_func.ftdi_i2c_read(self.ftdic, pins, 1)
         logging.debug('Current PCA pins direction: ' + hex(current_confg[0]))
-        self.ftdi_i2c_stop(pins)
+        common_func.ftdi_i2c_stop(self.ftdic, pins)
         intput_bitmask = (~(pins['pca6416'][2])) & current_confg[0]
         logging.debug('Input PCA  bitmask pins direction: ' + hex(intput_bitmask))
-        self.ftdi_i2c_start(pins)
-        status = self.ftdi_i2c_write(pins, add_write)
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
         if status != 0: return status
-        status = self.ftdi_i2c_write(pins, conf_cmd)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, conf_cmd)
         if status != 0: return status
-        status = self.ftdi_i2c_write(pins, intput_bitmask)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, intput_bitmask)
         if status != 0: return status
-        self.ftdi_i2c_stop(pins)
+        common_func.ftdi_i2c_stop(self.ftdic, pins)
 
     def pca6416_get_output(self, pins):
         """returns the current pins configuration of the PCA"""
@@ -355,159 +304,37 @@ class Board:
         add_write = (pins['pca6416'][0] << 1) + 0
         add_read = (pins['pca6416'][0] << 1) + 1
         conf_cmd = (pins['pca6416'][1]) + 0x02
-        self.ftdi_i2c_start(pins)
-        status = self.ftdi_i2c_write(pins, add_write)
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
         if status != 0: return status
-        status = self.ftdi_i2c_write(pins, conf_cmd)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, conf_cmd)
         if status != 0: return status
-        self.ftdi_i2c_start(pins)
-        status = self.ftdi_i2c_write(pins, add_read)
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, add_read)
         if status != 0: return status
-        current_out = self.ftdi_i2c_read(pins, 1)
-        self.ftdi_i2c_stop(pins)
+        current_out = common_func.ftdi_i2c_read(self.ftdic, pins, 1)
+        common_func.ftdi_i2c_stop(self.ftdic, pins)
         return current_out[0] & pins['pca6416'][2]
-
-    def ftdi_i2c_read(self, pins, is_nack):
-        """low-level I2C read"""
-        logging.debug('ftdi_i2c_read')
-        val_bitmask = pins['ftdi'][2]
-        dir_bitmask = pins['ftdi'][1]
-        buf = []
-        buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
-        buf.append(ft_def.VALUE_SCLLOW_SDALOW | val_bitmask)
-        buf.append(ft_def.DIRECTION_SCLOUT_SDAIN | dir_bitmask)
-        buf.append(ft_def.MPSSE_CMD_DATA_IN_BITS_POS_EDGE)
-        buf.append(ft_def.DATA_SIZE_8BITS)
-        buf.append(ft_def.MPSSE_CMD_SEND_IMMEDIATE)
-        buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
-        buf.append(ft_def.VALUE_SCLLOW_SDALOW | val_bitmask)
-        buf.append(ft_def.DIRECTION_SCLOUT_SDAOUT | dir_bitmask)
-        buf.append(ft_def.MPSSE_CMD_DATA_OUT_BITS_NEG_EDGE)
-        buf.append(0x00)
-        if is_nack:
-            buf.append(0x80)
-        else:
-            buf.append(0x00)
-        buf_to_send = bytes(buf)
-        self.ftdic_write(buf_to_send)
-        time.sleep(0.0001)
-        receive = self.ftdic.read(1)
-        return receive
-
-    def ftdi_i2c_write(self, pins, data):
-        """low-level I2C write"""
-        logging.debug('ftdi_i2c_write')
-        val_bitmask = pins['ftdi'][2]
-        dir_bitmask = pins['ftdi'][1]
-        buf = []
-        buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
-        buf.append(ft_def.VALUE_SCLLOW_SDALOW | val_bitmask)
-        buf.append(ft_def.DIRECTION_SCLOUT_SDAOUT | dir_bitmask)
-        buf.append(ft_def.MPSSE_CMD_DATA_OUT_BITS_NEG_EDGE)
-        buf.append(ft_def.DATA_SIZE_8BITS)
-        buf.append(data)
-        buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
-        buf.append(ft_def.VALUE_SCLLOW_SDALOW | val_bitmask)
-        buf.append(ft_def.DIRECTION_SCLOUT_SDAIN | dir_bitmask)
-        buf.append(ft_def.MPSSE_CMD_DATA_IN_BITS_POS_EDGE)
-        buf.append(ft_def.DATA_SIZE_1BIT)
-        buf.append(ft_def.MPSSE_CMD_SEND_IMMEDIATE)
-        buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
-        buf.append(ft_def.VALUE_SCLLOW_SDALOW | val_bitmask)
-        buf.append(ft_def.DIRECTION_SCLOUT_SDAOUT | dir_bitmask)
-        buf_to_send = bytes(buf)
-        self.ftdic_write(buf_to_send)
-        time.sleep(0.0005)
-        in_buff = self.ftdic.read(1)
-        if (in_buff[0] & 0x01) != 0:
-            logging.warning("Can't get ack after write!")
-            return -1
-        return 0
-
-    def ftdi_i2c_stop(self, pins):
-        """low-level I2C stop"""
-        logging.debug('ftdi_i2c_stop')
-        val_bitmask = pins['ftdi'][2]
-        dir_bitmask = pins['ftdi'][1]
-        buf = []
-        buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
-        buf.append(ft_def.VALUE_SCLLOW_SDALOW | val_bitmask)  # SCL low, SDA low
-        buf.append(ft_def.DIRECTION_SCLOUT_SDAOUT | dir_bitmask)
-        buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
-        buf.append(ft_def.VALUE_SCLHIGH_SDALOW | val_bitmask)  # SCL high, SDA low
-        buf.append(ft_def.DIRECTION_SCLOUT_SDAOUT | dir_bitmask)
-        buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
-        buf.append(ft_def.VALUE_SCLHIGH_SDAHIGH | val_bitmask)  # SCL high, SDA high
-        buf.append(ft_def.DIRECTION_SCLOUT_SDAOUT | dir_bitmask)
-        buf_to_send = bytes(buf)
-        self.ftdic_write(buf_to_send)
-
-    def ftdi_i2c_start(self, pins):
-        """low-level I2C start"""
-        logging.debug('ftdi_i2c_start')
-        val_bitmask = pins['ftdi'][2]
-        dir_bitmask = pins['ftdi'][1]
-        buf = []
-        buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
-        buf.append(ft_def.VALUE_SCLHIGH_SDAHIGH | val_bitmask)  # SCL high, SDA high
-        buf.append(ft_def.DIRECTION_SCLOUT_SDAOUT | dir_bitmask)
-        buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
-        buf.append(ft_def.VALUE_SCLHIGH_SDALOW | val_bitmask)  # SCL high, SDA low
-        buf.append(ft_def.DIRECTION_SCLOUT_SDAOUT | dir_bitmask)
-        buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
-        buf.append(ft_def.VALUE_SCLLOW_SDALOW | val_bitmask)  # SCL low, SDA low
-        buf.append(ft_def.DIRECTION_SCLOUT_SDAOUT | dir_bitmask)
-        buf_to_send = bytes(buf)
-        self.ftdic_write(buf_to_send)
-
-    def ftdi_i2c_init(self, pins):
-        """low-level I2C initialization"""
-        logging.debug('ftdi_i2c_init')
-        val_bitmask = pins['ftdi'][2]
-        dir_bitmask = pins['ftdi'][1]
-        buf = []
-        buf.append(
-            ft_def.MPSSE_CMD_DISABLE_CLOCK_DIVIDE_BY_5)  # Ensure disable clock divide by 5 for 60Mhz master clock
-        buf.append(ft_def.MPSSE_CMD_DISABLE_ADAPTIVE_CLOCKING)  # Ensure turn off adaptive clocking
-        buf.append(
-            ft_def.MPSSE_CMD_ENABLE_3PHASE_CLOCKING)  # PAC 1934 need it. Enable 3 phase data clock, used by I2C to allow data on one clock edge
-        buf_to_send = bytes(buf)
-        self.ftdic_write(buf_to_send)
-        buf.clear()
-        buf.append(
-            ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)  # Command to set directions of lower 8 pins and force value on bits set as output
-        buf.append(ft_def.VALUE_SCLHIGH_SDAHIGH | val_bitmask)
-        buf.append(ft_def.DIRECTION_SCLOUT_SDAOUT | dir_bitmask)
-        buf.append(ft_def.MPSSE_CMD_SET_CLOCK_DIVISOR)  # Command to set clock divisor
-        buf.append(
-            ft_def.CLOCK_DIVISOR_400K & 0xFF)  # problem with byte(), result M instead of 4D - Set 0xValueL of clock divisor
-        buf.append((ft_def.CLOCK_DIVISOR_400K >> 8) & 0xFF)  # Set 0xValueH of clock divisor
-        buf_to_send = bytes(buf)
-        self.ftdic_write(buf_to_send)
-        buf.clear()
-        buf.append(ft_def.MPSEE_CMD_DISABLE_LOOPBACK)  # Command to turn off loop back of TDI/TDO connection
-        buf_to_send = bytes(buf)
-        self.ftdic_write(buf_to_send)
 
     def ftdi_gpio_write(self, gpio_name, gpio_value):
         """writes desired value to the gpio passed in parameter"""
         logging.debug('ftdi_gpio_write')
         gpio_add = gpio_name['ftdi'][1]
-        current_output = self.ftdic_read_gpio()
+        current_output = common_func.ftdic_read_gpio(self.ftdic)
         logging.debug('current GPIO configuration: ' + hex(current_output))
         if not gpio_value:
             data = current_output & ~gpio_add
-            self.ftdic_write_gpio(data)
+            common_func.ftdic_write_gpio(self.ftdic, data)
         if gpio_value == 1 or gpio_value == 0xFF:
             data = current_output | gpio_add
-            self.ftdic_write_gpio(data)
+            common_func.ftdic_write_gpio(self.ftdic, data)
         if gpio_value == 2:
             data = current_output ^ gpio_add
-            self.ftdic_write_gpio(data)
+            common_func.ftdic_write_gpio(self.ftdic, data)
             time.sleep(0.5)
-            self.ftdic_write_gpio(current_output)
+            common_func.ftdic_write_gpio(self.ftdic, current_output)
         # add traces as debug
-        current_output = self.ftdic_read_gpio()
+        current_output = common_func.ftdic_read_gpio(self.ftdic)
         logging.debug('modified GPIO configuration: ' + hex(current_output))
 
     def deinit_system(self):
@@ -520,21 +347,22 @@ class Board:
         channel = pins['ftdi'][0]
         out_pins = 0
         logging.info('FTDI Initialization...')
-        self.ftdic = self.ftdi_open(self.id, channel)
+        self.ftdic = common_func.ftdi_open(self.id, channel)
         if mode == 0:  # if GPIO mode
             for gpio in self.board_mapping_gpio:  # if channel 0, parse gpio default value of channel 0
                 if gpio['ftdi'][0] == channel:
                     out_pins += gpio['ftdi'][1]
-            self.ftdic_setbitmode(0xFF, 0x1)
+                    common_func.ftdic_setbitmode(0xFF, 0x1)
         if mode == 1:  # if I2C mode
-            self.ftdic_setbitmode(0x0, 0x00)  # reset the controller
-            self.ftdic_setbitmode(0x0, 0x02)  # set as MPSSE
-            self.ftdi_i2c_init(pins)  # Init FT4232H MPSSE with correct parameters
+            common_func.ftdic_setbitmode(self.ftdic, 0x0, 0x00)  # reset the controller
+            common_func.ftdic_setbitmode(self.ftdic, 0x0, 0x02)  # set as MPSSE
+            common_func.ftdi_i2c_init(self.ftdic, pins)  # Init FT4232H MPSSE with correct parameters
         logging.info('Done.')
 
     def resume(self):
         print("start resuming / suspending...")
-        gpio = next((item for item in self.board_mapping_gpio if(item['name'] == 'FTA_PWR_ON_OFF' or item['name'] == 'FT_ONOFF_B')), None)
+        gpio = next((item for item in self.board_mapping_gpio if
+                     (item['name'] == 'FTA_PWR_ON_OFF' or item['name'] == 'FT_ONOFF_B')), None)
         FTDI_LOCK.acquire()
         self.set_gpio(gpio, 0xFF)
         time.sleep(0.5)
@@ -613,7 +441,6 @@ class Board:
             self.pca6416_set_direction(gpio_name)
             self.pca_write(gpio_name, gpio_value)
 
-
     def switch_res(self, rail, rail_num):
         """checks if switching desired resistance is authorised and return the status"""
         switch_res_permitted = False
@@ -669,10 +496,10 @@ class Board:
     def reset_pac(self, pins):
         """I2C communication for sending reset command to the current PAC"""
         add_write = (pins['pac'][1] << 1) + 0
-        self.ftdi_i2c_start(pins)
-        self.ftdi_i2c_write(pins, add_write)
-        self.ftdi_i2c_write(pins, 0x00)
-        self.ftdi_i2c_stop(pins)
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
+        common_func.ftdi_i2c_write(self.ftdic, pins, 0x00)
+        common_func.ftdi_i2c_stop(self.ftdic, pins)
 
     def pac_set_bipolar(self):
         self.params['bipolar'] = not self.params['bipolar']
@@ -681,14 +508,14 @@ class Board:
             if rail['pac'][2] != self.board_mapping_power[index - 1]['pac'][2]:
                 self.pca9548_set_channel(rail)
                 add_write = (rail['pac'][1] << 1)
-                self.ftdi_i2c_start(rail)
-                self.ftdi_i2c_write(rail, add_write)
-                self.ftdi_i2c_write(rail, 0x1D)
+                common_func.ftdi_i2c_start(self.ftdic, rail)
+                common_func.ftdi_i2c_write(self.ftdic, rail, add_write)
+                common_func.ftdi_i2c_write(self.ftdic, rail, 0x1D)
                 if self.params['bipolar']:
-                    self.ftdi_i2c_write(rail, 0xF0)
+                    common_func.ftdi_i2c_write(self.ftdic, rail, 0xF0)
                 else:
-                    self.ftdi_i2c_write(rail, 0x00)
-                self.ftdi_i2c_stop(rail)
+                    common_func.ftdi_i2c_write(self.ftdic, rail, 0x00)
+                    common_func.ftdi_i2c_stop(self.ftdic, rail)
         FTDI_LOCK.release()
 
     def pac_hw_filter(self):
@@ -714,14 +541,14 @@ class Board:
             register = PAC1934_ADDR_REG_VBUS
         add_write = (pins['pac'][1] << 1) + 0
         add_read = (pins['pac'][1] << 1) + 1
-        self.ftdi_i2c_start(pins)
-        self.ftdi_i2c_write(pins, add_write)
-        self.ftdi_i2c_write(pins, register)
-        self.ftdi_i2c_start(pins)
-        self.ftdi_i2c_write(pins, add_read)
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
+        common_func.ftdi_i2c_write(self.ftdic, pins, register)
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        common_func.ftdi_i2c_write(self.ftdic, pins, add_read)
         for i in range(15):
-            data.append(self.ftdi_i2c_read(pins, 0))
-        data.append(self.ftdi_i2c_read(pins, 1))
+            data.append(common_func.ftdi_i2c_read(self.ftdic, pins, 0))
+        data.append(common_func.ftdi_i2c_read(self.ftdic, pins, 1))
         for i in range(rail_of_pac):
             channel = self.board_mapping_power[i + index]['pac'][0]
             volt = (((data[(2 * channel) - 2][0] << 8) + data[(2 * channel) - 1][0]) * 32) / 65535

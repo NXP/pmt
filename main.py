@@ -127,6 +127,13 @@ def main():
                                metavar='id')
     parser_version = parser.add_argument('-v', '--version', action='version', version=PROGRAM_VERSION, help='print the current version of the PMT')
 
+    parser_eeprom = subparser.add_parser('eeprom', help='EEPROM utility')
+    parser_eeprom.add_argument('-m', '--mode', required=False, help='specify read or write to EEPROM', metavar='mode')
+    parser_eeprom.add_argument('-i', '--id', required=False, type=int, default=0,
+                               help='specify id of the EEPROM returned by lsftdi', metavar='id')
+    parser_eeprom.add_argument('-f', '--file', required=False, help='Helper file containing data to write',
+                               metavar='file')
+
     args = parser.parse_args()
     logging.debug(args)
 
@@ -136,7 +143,8 @@ def main():
         print('*************************************************************************')
 
     if args.command == 'lsftdi':
-        drv_ftdi.list_connected_devices()
+        board = drv_ftdi.Board(args)
+        board.eeprom.show_devices()
 
     if args.command == 'lsboard':
         list_supported_board()
@@ -180,7 +188,13 @@ def main():
     if args.command == 'resume':
         print('Not implemented yet.')
 
-
+    if args.command == 'eeprom':
+        board = drv_ftdi.Board(args)
+        if args.mode:
+            if args.mode == 'read' or args.mode == 'r':
+                board.board_eeprom_read()
+            elif args.mode == 'write' or args.mode == 'w':
+                board.board_eeprom_write()
 
 if __name__ == '__main__':
     main()
