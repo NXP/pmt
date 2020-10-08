@@ -41,6 +41,9 @@ import numpy as np
 
 import drv_ftdi
 
+PROGRAM_VERSION = 'PMT v1.0'
+COPYRIGHT_INFO = 'Copyright 2020 NXP'
+
 COLORS = ["#8B7825", "#842D2C", "#5E3450", "#00253D", "#205632", "#4E2B1B", "#6C561A", "#8A2533", "#5A2C5D", "#005474",
           "#4C762A", "#463626", "#6E4A1C", "#802247", "#2E1B45", "#00454E", "#554E24", "#2D2926", "#BE4C00", "#691F42",
           "#543074", "#244A57", "#817800", "#99AA00", "#73371B", "#572831", "#0A282E", "#004C40", "#B39900", "#83322E",
@@ -679,6 +682,13 @@ class GUI(QtWidgets.QMainWindow):
             screenshot.save(filename, 'png')
             print("Saved image to: ", filename)
 
+    def display_about(self):
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Information)
+        msg.setWindowTitle("About")
+        msg.setText('Power Measurement Tool ' + PROGRAM_VERSION + '\n' + COPYRIGHT_INFO +'\nLicense: BSD-3-Clause\nContact info: Create issue in PMT Github')
+        msg.exec()
+
     def start_record(self):
         """starts the timer if the user clicks on start button"""
         if self.state != 'pause':
@@ -891,6 +901,9 @@ class GUI(QtWidgets.QMainWindow):
         self.mouse_p_menu = self.winmenu.addAction("Show / hide Mouse Pointer data window",
                                                    self.sh_mouse_pointer_data_window)
         self.mouse_p_menu.setVisible(False)
+
+        self.helpmenu = self.menu_bar.addMenu('Help')
+        self.about = self.helpmenu.addAction('About PMT', self.display_about)
 
         if not self.args.load:
             self.status_bar.showMessage("Recording")
