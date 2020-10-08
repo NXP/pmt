@@ -1,3 +1,5 @@
 pylibftdi
 numpy
 pyqtgraph
+pyftdi
+xlrd

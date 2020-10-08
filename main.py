@@ -36,9 +36,6 @@ from board_configuration import common
 import gui
 import tui
 
-
-PROGRAM_VERSION = 'PMT 1.1'
-
 LOG_LEVEL = logging.WARNING
 
 
@@ -125,7 +122,7 @@ def main():
     parser_resume.add_argument('-b', '--board', required=False, help='specify supported board name', metavar='board')
     parser_resume.add_argument('-i', '--id', required=False, type=int, default=-1, help='specify id of the board',
                                metavar='id')
-    parser_version = parser.add_argument('-v', '--version', action='version', version=PROGRAM_VERSION, help='print the current version of the PMT')
+    parser_version = parser.add_argument('-v', '--version', action='version', version=gui.PROGRAM_VERSION, help='print the current version of the PMT')
 
     parser_eeprom = subparser.add_parser('eeprom', help='EEPROM utility')
     parser_eeprom.add_argument('-m', '--mode', required=False, help='specify read or write to EEPROM', metavar='mode')

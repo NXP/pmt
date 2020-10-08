@@ -13,6 +13,8 @@ The following packages must be installed for the tool to start:
  - numpy
  - pyqtgraph
  - pyqt5
+ - pyftdi
+ - xlrd
 
 The installation of all dependencies can be done by:
  - pip3 install -r requirements.txt
@@ -28,6 +30,8 @@ The following packages must be installed for the tool to start:
 - pip3 install numpy
 - pip3 install pyqtgraph
 - pip3 install pyqt5
+- pip3 install pyftdi
+- pip3 install xlrd
 
 Install the FTDI D2XX library available here: https://www.ftdichip.com/Drivers/D2XX.htm
 Copy the files in the PMT directory.
@@ -37,7 +41,7 @@ ________________________________________________________________________________
 
 ## Run PMT
 
-To access FTDI chip, one would either need to run PMT as a superuser (not recommended), or use the following procedure,
+To access FTDI FT4232h chip, one would either need to run PMT as a superuser (not recommended, errors may occur), or use the following procedure,
 adding specific udev rules to allow FTDI chip access to members of the dialout group (or any other groups you may chose):
 
 1- Create a file named /etc/udev/rules.d/90-ftdi.rules, containing the following line:
@@ -47,9 +51,10 @@ SUBSYSTEMS=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6011", GROUP="dia
 2- Then reload the udev rules:
 
 % sudo udevadm control --reload-rules
+
 % sudo udevadm trigger
 
-3 Add your user account to the standard dialout group:
+3- Add your user account to the standard dialout group:
 
 % sudo usermod -aG dialout $(echo $(whoami))
 
@@ -61,7 +66,16 @@ $ python3 main.py [-options]
 By default, the program will probe every available power rail. You can choose the rail / group you
 want to read by modifying the file program_config.py.
 
-**Program will automatically detect connected board(s). If 2 boards or more are connected, please specify at least board name or loc_id provided by lsftdi.**
+**Notes:**
+
+- Program will automatically detect connected board(s). If 2 boards or more are connected, please specify at least board name or loc_id provided by lsftdi.
+
+- In case any other FTDI USB chips are connected to the Host PC, user must ensure they are also registered in 90-ftdi.rules.
+
+  To do so, add new udev rule entry with correct idProduct attribute. E.g. for FT2232, add the following new rule in 90-ftdi.rules:
+
+  SUBSYSTEMS=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", GROUP="dialout", MODE="0660"
+
 _____________________________________________________________________________________
 
 ## Features
@@ -76,6 +90,7 @@ ________________________________________________________________________________
 | reset [-b] [-bootm] [-d] | Reset the specified board with possible choosen boot mode and delay           |
 | set_gpio [-b] [-g] [-v]  | modify [-g] gpio name with specified [-v] value                               |
 | monitor [-b] [-m] [-l] [-i] [-t] [-d]  | display power / voltage / current data in [-m] mode. Possibility to load file |
+| eeprom [-m] [-i] [-f]    | Read or Write in FTDI / I2C EEPROM                                            |
 
 #### Examples
 
@@ -102,6 +117,12 @@ $ python3 main.py monitor -b imx8dxlevk -m gui
 
 **monitor in TUI:**
 $ python3 main.py monitor -b imx8dxlevk -t 15 -d test.csv
+
+**read EEPROM content:**
+$ python3 main.py eeprom -m read
+
+**write in EEPROM with Programmer Tool excel file:**
+python3 main.py eeprom -m write -f docs/EEPROM_Programmer_Tool.xlsx
 
 ### GUI features
 
@@ -146,6 +167,16 @@ less to 9mA to allow the switching from high-current shunt to low-current shunt.
 **Switch between low-current shunt to high-current shunt is always authorized, we don't do any pre-check.**
 
 
+## Important information
+
+If you use the board for the first time, please ensure that the EEPROM is correctly programmed. If not, program it
+thanks to the EEPROM_Programmer_Tool file with the correct information.
+
+**For automatic board detection, PMT reads the content of the EEPROM.**
+
+## Contact
+
+For any question or issue please open an issue in PMT Github (https://github.com/NXPmicro/pmt/issues).
 _____________________________________________________________________________________
 
 ## License
