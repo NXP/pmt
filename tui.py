@@ -272,13 +272,14 @@ def run_ui(board, args):
         headers = []
         data = []
         type_data = ['voltage', 'current', 'power']
+        type_data_unit = [' (V)', ' (mA)', ' (mW)']
         array_size = rail_buf[-1]['voltage'].shape[0]
         data.append(rail_buf[0]['voltage'][1:array_size, 0])
-        headers.append('Time')
+        headers.append('Time (ms)')
         for d_rail in board.rails_to_display:
             rail = next((item for item in rail_buf if item['railnumber'] == d_rail['name']), None)
             for j in range(3):
-                headers.append(str(d_rail['name'] + "-" + type_data[j]))
+                headers.append(str(d_rail['name'] + " " + type_data[j] + type_data_unit[j]))
                 if j != 2:
                     data.append(rail[type_data[j]][1:array_size, 1])
                 else:
@@ -286,7 +287,7 @@ def run_ui(board, args):
         if board.power_groups:
             power_group = np.zeros([1, 2], dtype=np.float16)
             for group in board.power_groups:
-                headers.append(group['name'] + '-power')
+                headers.append(group['name'] + ' power (mW)')
                 for rail_group in group['rails']:
                     rail = next((item for item in rail_buf if item['railnumber'] == rail_group),
                                 None)
@@ -299,6 +300,6 @@ def run_ui(board, args):
                         power_rail.resize(power_group.shape)
                     power_group = power_group + power_rail
                 data.append(power_group[:, 1])
-        np.savetxt(name, np.column_stack(data), delimiter=",", header=', '.join(headers), fmt='%1.4f',
+        np.savetxt(name, np.column_stack(data), delimiter=",", header=','.join(headers), fmt='%1.4f',
                    comments='')
         print("Saved data in file " + name)

@@ -677,13 +677,14 @@ class GUI(QtWidgets.QMainWindow):
             filename = os.path.splitext(name[0])
             if filename:
                 type_data = ['voltage', 'current', 'power']
+                type_data_unit = [' (V)', ' (mA)', ' (mW)']
                 array_size = self.rail_buf[-1]['voltage'].shape[0]
                 data.append(self.rail_buf[0]['voltage'][1:array_size, 0])
-                headers.append('Time')
+                headers.append('Time (ms)')
                 for d_rail in self.b.rails_to_display:
                     rail = next((item for item in self.rail_buf if item['railnumber'] == d_rail['name']), None)
                     for j in range(3):
-                        headers.append(str(d_rail['name'] + "-" + type_data[j]))
+                        headers.append(str(d_rail['name'] + " " + type_data[j] + type_data_unit[j]))
                         if j != 2:
                             data.append(rail[type_data[j]][1:array_size, 1])
                         else:
@@ -691,7 +692,7 @@ class GUI(QtWidgets.QMainWindow):
                 if self.b.power_groups:
                     power_group = np.zeros([1, 2], dtype=np.float16)
                     for group in self.b.power_groups:
-                        headers.append(group['name'] + '-power')
+                        headers.append(group['name'] + ' power (mW)')
                         for rail_group in group['rails']:
                             rail = next((item for item in self.rail_buf if item['railnumber'] == rail_group),
                                         None)
@@ -704,7 +705,7 @@ class GUI(QtWidgets.QMainWindow):
                                 power_rail.resize(power_group.shape)
                             power_group = power_group + power_rail
                         data.append(power_group[:, 1])
-                np.savetxt(filename[0] + ".csv", np.column_stack(data), delimiter=",", header=', '.join(headers), fmt='%1.4f', comments='')
+                np.savetxt(filename[0] + ".csv", np.column_stack(data), delimiter=",", header=','.join(headers), fmt='%1.4f', comments='')
                 print("Saved data in file " + filename[0] + ".csv")
 
     def save_png(self):
@@ -847,19 +848,19 @@ class GUI(QtWidgets.QMainWindow):
                         if first_run:
                             last_el = ''
                             for r in row[1:]:
-                                if r.split('-')[0] == last_el:
+                                if r.split(' ')[0] == last_el:
                                     pass
-                                elif not 'GROUP' in r.split('-')[0]:
-                                    self.b.rails_to_display.append({'name': r.split('-')[0]})
+                                elif not 'GROUP' in r.split(' ')[0]:
+                                    self.b.rails_to_display.append({'name': r.split(' ')[0]})
                                     self.rail_buf.append(
-                                        {'railnumber': r.split('-')[0], 'current': np.empty([1, 2], dtype=np.float16),
+                                        {'railnumber': r.split(' ')[0], 'current': np.empty([1, 2], dtype=np.float16),
                                          'voltage': np.empty([1, 2], dtype=np.float16)})
-                                    last_el = r.split('-')[0]
+                                    last_el = r.split(' ')[0]
                                 else:
-                                    self.b.power_groups.append({'name': r.split('-')[0]})
+                                    self.b.power_groups.append({'name': r.split(' ')[0]})
                                     self.groups_buf.append(
-                                        {'group_name': r.split('-')[0], 'power': np.zeros([1, 2], dtype=np.float16)})
-                                    last_el = r.split('-')[0]
+                                        {'group_name': r.split(' ')[0], 'power': np.zeros([1, 2], dtype=np.float16)})
+                                    last_el = r.split(' ')[0]
                             first_run = False
                         else:
                             ind = 0
