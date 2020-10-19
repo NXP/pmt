@@ -122,12 +122,11 @@ class Board:
                 sys.exit()
         elif len(boards_infos) == 1:
             if self.args.board:
-                if boards_infos[0]['name'] == self.args.board:
-                    self.name = boards_infos[0]['name']
-                    self.id = 0
-                else:
-                    logging.error('Board connected is not the one passed in command line... Leaving')
-                    sys.exit()
+                self.name = self.args.board
+                self.id = 0
+                if not boards_infos[0]['name'] == self.args.board:
+                    print('!!! WARNING: The board name passed in command line does not match with the configuration flashed in EEPROM, please double-check. !!!')
+                    time.sleep(3)
             elif self.args.id != -1:
                 if self.args.id == 0:
                     self.name = boards_infos[0]['name']
@@ -138,6 +137,15 @@ class Board:
             else:
                 self.name = boards_infos[0]['name']
                 self.id = 0
+        elif len(boards_infos) == 0:
+            if self.args.board:
+                self.name = self.args.board
+                self.id = 0
+                logging.warning('The board name passed in command line does not match with the configuration flashed in EEPROM, please double-check.')
+                time.sleep(3)
+            else:
+                logging.error("Board not recognized or doesn't match board name specified in command line... Leaving")
+                sys.exit()
         else:
             logging.error("Board not recognized or doesn't match with command line... Leaving")
             sys.exit()
