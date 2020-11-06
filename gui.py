@@ -259,6 +259,10 @@ class MPDataWin(QtGui.QDialog):
                     mp_gpower = power[x_coord_p - 1]
                     self.data_table.setItem(i + j + 1, 1, QtGui.QTableWidgetItem(str(mp_gpower)))
 
+    def closeEvent(self, event):
+        """function called when window is quit by clicking the red cross"""
+        self.parent.proxy1.disconnect()
+        self.parent.proxy2.disconnect()
 
 class GlobalDataWin(QtGui.QDialog):
     """extern window displaying data collected since app starts"""
@@ -413,21 +417,6 @@ class GUI(QtWidgets.QMainWindow):
         mousepoint = self.global_graph.getPlotItem().getViewBox().mapSceneToView(pos)
         time_coor = mousepoint.x()
         self.mouse_pointer_window.update_data(time_coor)
-
-    def mouse_pointer(self):
-        """enables / disables mouse pointer feature"""
-        if self.en_mouse_pointer.isChecked():
-            self.mouse_p_menu.setVisible(True)
-            self.mouse_pointer_window.setVisible(True)
-            self.proxy1 = pg.SignalProxy(self.zoom_graph.scene().sigMouseMoved, rateLimit=20,
-                                         slot=self.mousemoved_zoom_graph)
-            self.proxy2 = pg.SignalProxy(self.global_graph.scene().sigMouseMoved, rateLimit=20,
-                                         slot=self.mousemove_global_graph)
-        else:
-            self.mouse_p_menu.setVisible(False)
-            self.mouse_pointer_window.setVisible(False)
-            self.proxy1.disconnect()
-            self.proxy2.disconnect()
 
     def global_update(self):
         """stores in local buffer the shared variable with measured values"""
@@ -815,6 +804,14 @@ class GUI(QtWidgets.QMainWindow):
         """shows / hides mouse pointer data window if user clicks in Windows menu bar item"""
         current_state = self.mouse_pointer_window.isVisible()
         self.mouse_pointer_window.setVisible(not current_state)
+        if self.mouse_pointer_window.isVisible():
+            self.proxy1 = pg.SignalProxy(self.zoom_graph.scene().sigMouseMoved, rateLimit=20,
+                                         slot=self.mousemoved_zoom_graph)
+            self.proxy2 = pg.SignalProxy(self.global_graph.scene().sigMouseMoved, rateLimit=20,
+                                         slot=self.mousemove_global_graph)
+        else:
+            self.proxy1.disconnect()
+            self.proxy2.disconnect()
 
     def board_reset(self):
         """calls low level function for resetting board"""
@@ -917,10 +914,6 @@ class GUI(QtWidgets.QMainWindow):
 
         self.settingmenu = self.menu_bar.addMenu('Settings')
         self.settingmenu.setToolTipsVisible(True)
-        self.en_mouse_pointer = QtWidgets.QAction("Enable Mouse Pointer", self.settingmenu, checkable=True)
-        self.en_mouse_pointer.setChecked(False)
-        self.en_mouse_pointer.triggered.connect(self.mouse_pointer)
-        self.settingmenu.addAction(self.en_mouse_pointer)
         if not self.args.load:
             self.en_hw_filter = QtWidgets.QAction("Enable PAC hardware filter", self.settingmenu, checkable=True)
             self.en_hw_filter.setToolTip("Use the PAC's rolling average of eight most recent measurements")
@@ -936,9 +929,7 @@ class GUI(QtWidgets.QMainWindow):
         self.winmenu = self.menu_bar.addMenu('Windows')
         self.winmenu.addAction("Show / hide Global data window", self.sh_global_data_window)
         self.winmenu.addAction("Show / hide Zoom data window", self.sh_zoom_data_window)
-        self.mouse_p_menu = self.winmenu.addAction("Show / hide Mouse Pointer data window",
-                                                   self.sh_mouse_pointer_data_window)
-        self.mouse_p_menu.setVisible(False)
+        self.winmenu.addAction("Show / hide Mouse Pointer data window",self.sh_mouse_pointer_data_window)
 
         self.helpmenu = self.menu_bar.addMenu('Help')
         self.about = self.helpmenu.addAction('About PMT', self.display_about)
