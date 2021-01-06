@@ -41,7 +41,7 @@ INFOS = [
         '0x3': 'NXP i.MX8MP EVK Board',
         '0x4': 'NXP i.MX8MP EVK PWR Board',
         '0x5': 'NXP i.MX8MP DDR3L Board',
-        '0x6': 'NXP i.MX8MP DDR4L Board'}
+        '0x6': 'NXP i.MX8MP DDR4 Board'}
     },
     {'name': 'BOARD_REV', 'datas': {
         '0x11': 'A0',
@@ -61,8 +61,8 @@ INFOS = [
         '0x35': 'C4'}
     },
     {'name': 'SOC_ID', 'datas': {
-        '0x1': 'imx8dxlevk',
-        '0x2': 'imx8mppwrevk'}
+        '0x1': 'i.MX8DXL',
+        '0x2': 'i.MX8MP'}
     },
     {'name': 'SOC_REV', 'datas': {
         '0x11': 'A0',

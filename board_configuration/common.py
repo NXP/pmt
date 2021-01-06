@@ -38,8 +38,9 @@ gpio_supported_values = {
     '2': 2
 }
 
-supported_boards = ["imx8dxlevk", "imx8mppwrevk"]
+supported_boards = ["imx8dxlevk", "imx8mppwrevka0", "imx8mppwrevka1"]
 
 board_eeprom = [{'board_name': 'imx8dxlevk', 'ftdi': [1, 0x60, 0x40], 'at24cxx': {'addr': 0x57, 'type': 0}},
-                {'board_name': 'imx8mppwrevk', 'ftdi': [1, 0xF0, 0x00], 'at24cxx': {'addr': 0x50, 'type': 1}}
+                {'board_name': 'imx8mppwrevka0', 'ftdi': [1, 0xF0, 0x00], 'at24cxx': {'addr': 0x50, 'type': 1}},
+                {'board_name': 'imx8mppwrevka1', 'ftdi': [1, 0xF0, 0x00], 'at24cxx': {'addr': 0x50, 'type': 1}}
                ]

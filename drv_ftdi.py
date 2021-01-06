@@ -150,35 +150,39 @@ class Board:
             logging.error("Board not recognized or doesn't match with command line... Leaving")
             sys.exit()
         print("Done.")
-        print("Starting measurements procedure with board " + str(self.name))
-        print('Board Initialization...')
         self.board_c = load_library(self.name)
-        if next((item for item in program_config.RAILS_TO_PROBE if item == 'all'), None):
-            self.board_mapping_power = self.board_c.mapping_power
-            self.rails_to_display = self.board_mapping_power
+        if self.board_c is None:
+            print("Board " + self.name + " is not supported... Leaving")
+            sys.exit()
         else:
+            print("Starting measurements procedure with board " + str(self.name))
+            print('Board Initialization...')
+            if next((item for item in program_config.RAILS_TO_PROBE if item == 'all'), None):
+                self.board_mapping_power = self.board_c.mapping_power
+                self.rails_to_display = self.board_mapping_power
+            else:
+                for name in program_config.RAILS_TO_PROBE:
+                    for rail in self.board_c.mapping_power:
+                        if name == rail['name']:
+                            self.board_mapping_power.append(rail)
+                            self.rails_to_display.append(rail)
             for name in program_config.RAILS_TO_PROBE:
-                for rail in self.board_c.mapping_power:
-                    if name == rail['name']:
-                        self.board_mapping_power.append(rail)
-                        self.rails_to_display.append(rail)
-        for name in program_config.RAILS_TO_PROBE:
-            for group in self.board_c.power_groups:
-                if name == group['name']:
-                    self.power_groups.append(group)
-                    for group_rail in group['rails']:
-                        add_rail = next((item for item in self.board_c.mapping_power if item['name'] == group_rail),
-                                        None)
-                        if add_rail in self.board_mapping_power:
-                            pass
-                        else:
-                            self.board_mapping_power.append(add_rail)
-        self.board_mapping_gpio_i2c = self.board_c.mapping_gpio_i2c
-        self.board_mapping_gpio = self.board_c.mapping_gpio
-        self.boot_modes = self.board_c.boot_modes
-        self.board_mapping_power = sorted(self.board_mapping_power,
-                                          key=lambda i: (i['pac'][2], i['pac'][0]))
-        print('Done.')
+                for group in self.board_c.power_groups:
+                    if name == group['name']:
+                        self.power_groups.append(group)
+                        for group_rail in group['rails']:
+                            add_rail = next((item for item in self.board_c.mapping_power if item['name'] == group_rail),
+                                            None)
+                            if add_rail in self.board_mapping_power:
+                                pass
+                            else:
+                                self.board_mapping_power.append(add_rail)
+            self.board_mapping_gpio_i2c = self.board_c.mapping_gpio_i2c
+            self.board_mapping_gpio = self.board_c.mapping_gpio
+            self.boot_modes = self.board_c.boot_modes
+            self.board_mapping_power = sorted(self.board_mapping_power,
+                                              key=lambda i: (i['pac'][2], i['pac'][0]))
+            print('Done.')
 
     def lsbootmode(self):
         """prints supported boot mode for the corresponding board"""
@@ -195,6 +199,9 @@ class Board:
             print('- ' + gpio_name['name'])
 
     def get_all_board(self):
+        boards_def = {'NXP i.MX8DXL EVK Board' : 'imx8dxlevk', 'NXP i.MX8DXL EVK DDR3 Board': 'imx8dxlevkddr3',
+                      'NXP i.MX8MP EVK Board' : 'imx8mpevk', 'NXP i.MX8MP EVK PWR Board' : 'imx8mppwrevk',
+                      'NXP i.MX8MP DDR3L Board' : 'imx8mpddr3l', 'NXP i.MX8MP DDR4 Board' : 'imx8mpddr4'}
         boards_infos = []
         dev_list = self.eeprom.list_eeprom_devices()
         for ind in range(len(dev_list)):
@@ -202,17 +209,23 @@ class Board:
             if type == 1: # i2c eeprom
                 for pins in common.board_eeprom:
                     self.eeprom.init_system(desc, ind)
-                    soc = self.eeprom.read_eeprom_soc_id(pins)
+                    board_id, board_rev = self.eeprom.read_eeprom_board_id_rev(pins)
                     self.eeprom.deinit()
-                    if soc != 'Unknown':
-                        boards_infos.append({'name': soc, 'loc_id': ind})
+                    board_id = boards_def.get(board_id, 'Unknown')
+                    if board_id != 'Unknown':
+                        if board_rev != 'Unknown' and board_id != 'imx8dxlevk': # temporary hack to be align with bcu (don't specify board revision for imx8dxlevk)
+                            board_id = board_id + board_rev.lower()
+                        boards_infos.append({'name': board_id, 'loc_id': ind})
                         break
             else: # serial eeprom
                 self.eeprom.init_system(desc, ind)
-                soc = self.eeprom.read_eeprom_soc_id()
+                board_id, board_rev = self.eeprom.read_eeprom_board_id_rev()
                 self.eeprom.deinit()
-                if soc != 'Unknown':
-                    boards_infos.append({'name': soc, 'loc_id': ind})
+                board_id = boards_def.get(board_id, 'Unknown')
+                if board_id != 'Unknown':
+                    if board_rev != 'Unknown' and board_id != 'imx8dxlevk': # temporary hack to be align with bcu (don't specify board revision for imx8dxlevk)
+                        board_id = board_id + board_rev.lower()
+                    boards_infos.append({'name': board_id, 'loc_id': ind})
             time.sleep(0.2)
         return boards_infos
 

@@ -96,18 +96,27 @@ class FTDIEeprom:
         for ind in range(1, sheet.nrows):
             self.file_info.append(sheet.row_values(ind))
 
-    def read_eeprom_soc_id(self, pins=None):
+    def read_eeprom_board_id_rev(self, pins=None):
+        board_id_index = 1
+        board_rev_index = 2
         if self.type == 0:
             if common_func.OS == 'Linux':
-                soc = hex(self.device.read_eeprom(addr=0x1d, length=1)[0])
-                return eeprom_mapping_table.INFOS[3]['datas'].get(soc, 'Unknown')
+                out = self.device.read_eeprom(addr=0x1a, length=3)
+                soc = hex(((out[0] & 0xFC) >> 2) | ((out[1] - 1) << 6))
+                rev = hex(out[2])
+                return eeprom_mapping_table.INFOS[board_id_index]['datas'].get(soc, 'Unknown'), \
+                    eeprom_mapping_table.INFOS[board_rev_index]['datas'].get(rev, 'Unknown')
             elif common_func.OS == 'Windows':
-                soc = self.device.eeUARead(4)
-                return eeprom_mapping_table.INFOS[3]['datas'].get(hex(soc[3]), 'Unknown')
+                soc = self.device.eeUARead(board_id_index + 1)
+                rev = self.device.eeUARead(board_rev_index + 1)
+                return eeprom_mapping_table.INFOS[board_id_index]['datas'].get(soc, 'Unknown'), \
+                    eeprom_mapping_table.INFOS[board_rev_index]['datas'].get(rev, 'Unknown')
         else:
-            soc = hex(self.read_eeprom_i2c(pins)[0])
-            return eeprom_mapping_table.INFOS[3]['datas'].get(soc, 'Unknown')
-
+            out = self.read_eeprom_i2c(pins)
+            soc = hex(((out[0][0] & 0xFC) >> 2) | ((out[1][0] - 1) << 6))
+            rev = hex(out[2][0])
+            return eeprom_mapping_table.INFOS[board_id_index]['datas'].get(soc, 'Unknown'), \
+                eeprom_mapping_table.INFOS[board_rev_index]['datas'].get(rev, 'Unknown')
 
     def display_eeprom_info(self):
         i = 0
@@ -240,19 +249,22 @@ class FTDIEeprom:
         self.write_eeprom_i2c(8, infos[-1], ep_num)
 
     def read_eeprom_i2c(self, pins):
+        out = []
         add_write = (pins['at24cxx']['addr'] << 1) + 0
         add_read = (pins['at24cxx']['addr'] << 1) + 1
         common_func.ftdi_i2c_init(self.device, pins)
         common_func.ftdi_i2c_start(self.device, pins)
         common_func.ftdi_i2c_write(self.device, pins, add_write)
         if pins['at24cxx']['type']:
-            common_func.ftdi_i2c_write(self.device, pins, 3 >> 8)
-            common_func.ftdi_i2c_write(self.device, pins, 3 & 0xFF)
+            common_func.ftdi_i2c_write(self.device, pins, 0 >> 8)
+            common_func.ftdi_i2c_write(self.device, pins, 0 & 0xFF)
         else:
-            common_func.ftdi_i2c_write(self.device, pins, 3)
+            common_func.ftdi_i2c_write(self.device, pins, 0)
         common_func.ftdi_i2c_start(self.device, pins)
         common_func.ftdi_i2c_write(self.device, pins, add_read)
-        out = common_func.ftdi_i2c_read(self.device, pins, 1)
+        for i in range(2):
+            out.append(common_func.ftdi_i2c_read(self.device, pins, 0))
+        out.append(common_func.ftdi_i2c_read(self.device, pins, 1))
         common_func.ftdi_i2c_stop(self.device, pins)
         return out
 
