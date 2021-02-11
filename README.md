@@ -107,10 +107,10 @@ $ python3 main.py lsboard
 $ python3 main.py lsbootmode -b imx8dxlevk
 
 **reset:**
-$ python3 main.py reset -b imx8mppwrevk -bootm emmc -d 2
+$ python3 main.py reset -b imx8mpevkpwra0 -bootm emmc -d 2
 
 **set_gpio:**
-$ python3 main.py set_gpio -b imx8mppwrevk -g FT_GPIO1 -v 1
+$ python3 main.py set_gpio -b imx8mpevkpwra0 -g FT_GPIO1 -v 1
 
 **monitor in GUI:**
 $ python3 main.py monitor -b imx8dxlevk -m gui

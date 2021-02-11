@@ -200,7 +200,7 @@ class Board:
 
     def get_all_board(self):
         boards_def = {'NXP i.MX8DXL EVK Board' : 'imx8dxlevk', 'NXP i.MX8DXL EVK DDR3 Board': 'imx8dxlevkddr3',
-                      'NXP i.MX8MP EVK Board' : 'imx8mpevk', 'NXP i.MX8MP EVK PWR Board' : 'imx8mppwrevk',
+                      'NXP i.MX8MP EVK Board' : 'imx8mpevk', 'NXP i.MX8MP EVK PWR Board' : 'imx8mpevkpwr',
                       'NXP i.MX8MP DDR3L Board' : 'imx8mpddr3l', 'NXP i.MX8MP DDR4 Board' : 'imx8mpddr4'}
         boards_infos = []
         dev_list = self.eeprom.list_eeprom_devices()
