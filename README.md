@@ -14,7 +14,7 @@ The following packages must be installed for the tool to start:
  - pyqtgraph
  - pyqt5
  - pyftdi
- - xlrd
+ - oyaml
 
 The installation of all dependencies can be done by:
  - pip3 install -r requirements.txt
@@ -31,7 +31,7 @@ The following packages must be installed for the tool to start:
 - pip3 install pyqtgraph
 - pip3 install pyqt5
 - pip3 install pyftdi
-- pip3 install xlrd
+- pip3 install oyaml
 
 Install the FTDI D2XX library available here: https://www.ftdichip.com/Drivers/D2XX.htm
 Copy the files in the PMT directory.

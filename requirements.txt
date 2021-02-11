@@ -2,4 +2,4 @@ pylibftdi
 numpy
 pyqtgraph
 pyftdi
-xlrd
+oyaml

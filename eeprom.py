@@ -28,12 +28,13 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+import oyaml as yaml
 import sys
-import xlrd
 from collections import OrderedDict
 import eeprom_mapping_table
 import common_function as common_func
 from board_configuration import common
+
 
 if common_func.OS == 'Linux':
     from pyftdi import ftdi
@@ -91,10 +92,15 @@ class FTDIEeprom:
             return dev
 
     def collect_eeprom_info(self):
-        workbook = xlrd.open_workbook(self.args.file)
-        sheet = workbook.sheet_by_name('EEPROM Programmer')
-        for ind in range(1, sheet.nrows):
-            self.file_info.append(sheet.row_values(ind))
+        with open(self.args.file, 'r') as file:
+            datas = (yaml.safe_load(file))
+            for item, value in datas.items():
+                for cpt in eeprom_mapping_table.INFOS:
+                    if cpt['name'] == item:
+                        code = next((key for key, val in cpt['datas'].items()
+                                     if val == str(value)), '0x7f')
+                        self.file_info.append([item, code])
+                        break
 
     def read_eeprom_board_id_rev(self, pins=None):
         board_id_index = 1
@@ -191,14 +197,14 @@ class FTDIEeprom:
         infos = []
         for info in self.file_info:
             if info[0] == 'BOARD_ID':
-                info[4] = int(info[4], 16)
-                data1 = info[4] << 2 if info[4] <= 40 else (info[4] << 2) & 0xFF
+                info[1] = int(info[1], 16)
+                data1 = info[1] << 2 if info[1] <= 40 else (info[1] << 2) & 0xFF
                 data1 |= 0x01
-                data2 = 1 if info[4] <= 40 else (((info[4] << 2) & 0xFF00) >> 8) + 1
+                data2 = 1 if info[1] <= 40 else (((info[1] << 2) & 0xFF00) >> 8) + 1
                 infos.append(data1)
                 infos.append(data2)
             else:
-                data = int(info[4], 16)
+                data = int(info[1], 16)
                 infos.append(data)
         if common_func.OS == 'Linux':
             self.device.write_eeprom(int('0x1a', 16), infos, dry_run=False)
@@ -214,7 +220,7 @@ class FTDIEeprom:
             common_func.ftdi_i2c_write(self.device, pins, address >> 8)
             common_func.ftdi_i2c_write(self.device, pins, address & 0xFF)
         else:
-                common_func.ftdi_i2c_write(self.device, pins, address)
+            common_func.ftdi_i2c_write(self.device, pins, address)
         common_func.ftdi_i2c_write(self.device, pins, data)
         common_func.ftdi_i2c_stop(self.device, pins)
 
@@ -223,14 +229,14 @@ class FTDIEeprom:
         address = 0
         for info in self.file_info:
             if info[0] == 'BOARD_ID':
-                info[4] = int(info[4], 16)
-                data1 = info[4] << 2 if info[4] <= 40 else (info[4] << 2) & 0xFF
+                info[1] = int(info[1], 16)
+                data1 = info[1] << 2 if info[1] <= 40 else (info[1] << 2) & 0xFF
                 data1 |= 0x01
-                data2 = 1 if info[4] <= 40 else (((info[4] << 2) & 0xFF00) >> 8) + 1
+                data2 = 1 if info[1] <= 40 else (((info[1] << 2) & 0xFF00) >> 8) + 1
                 infos.append(data1)
                 infos.append(data2)
             else:
-                data = int(info[4], 16)
+                data = int(info[1], 16)
                 infos.append(data)
         add_write = (common.board_eeprom[ep_num]['at24cxx']['addr'] << 1) + 0
         pins = common.board_eeprom[ep_num]

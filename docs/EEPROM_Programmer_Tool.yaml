@@ -1,0 +1,56 @@
+# Complete BOARD_ID with following options:
+#    - NXP i.MX8DXL EVK Board
+#    - NXP i.MX8DXL EVK DDR3 Board
+#    - NXP i.MX8MP EVK Board
+#    - NXP i.MX8MP EVK PWR Board
+#    - NXP i.MX8MP DDR3L Board
+#    - NXP i.MX8MP DDR4 Board
+
+BOARD_ID: NXP i.MX8MP EVK PWR Board
+
+# Complete BOARD_REV with revision of the board:
+#    - A0 to A4
+#    - B0 to B4
+#    - C0 to C4
+#    - "NOT FOUND" if no information
+
+BOARD_REV: A1
+
+# Complete SOC_ID with rwith following options:
+#    - i.MX8DXL
+#    - i.MX8MP
+#
+
+SOC_ID: i.MX8MP
+
+# Complete SOC_REV with revision of the board:
+#    - A0 to A4
+#    - B0 to B4
+#    - C0 to C4
+#    - "NOT FOUND" if no information
+
+SOC_REV: A1
+
+# Complete SOC_ID with rwith following options:
+#    - PP7100BVM1ES
+#    - PCA9450CHN
+
+PMIC_ID: PCA9450CHN
+
+# Complete PMIC_REV with revision of the board:
+#    - A0 to A4
+#    - B0 to B4
+#    - C0 to C4
+#    - "NOT FOUND" if no information
+
+PMIC_REV: NOT FOUND
+
+# Complete NBR_PWR_RAILS with the number of rails supported by board:
+#    - 0 to 30
+
+NBR_PWR_RAILS: 27
+
+# Complete BOARD_SN with the number of rails supported by board:
+#    - 0 to 30
+
+BOARD_SN: 1
