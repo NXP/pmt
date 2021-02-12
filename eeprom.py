@@ -117,11 +117,8 @@ class FTDIEeprom:
                     eeprom_mapping_table.INFOS[board_rev_index]['datas'].get(rev, 'Unknown')
             elif common_func.OS == 'Windows':
                 out = self.device.eeUARead(3)
-                soc = 0
-                rev = 0
-                if len(out) > 0:
-                    soc = hex(((out[0] & 0xFC) >> 2) | ((out[1] - 1) << 6))
-                    rev = hex(out[2])
+                soc = hex(((out[0] & 0xFC) >> 2) | ((out[1] - 1) << 6))
+                rev = hex(out[2])
                 return eeprom_mapping_table.INFOS[board_id_index]['datas'].get(soc, 'Unknown'), \
                     eeprom_mapping_table.INFOS[board_rev_index]['datas'].get(rev, 'Unknown')
         else:
@@ -139,6 +136,14 @@ class FTDIEeprom:
 
     def read(self, id):
         dev_list = self.list_eeprom_devices()
+        if id >= len(dev_list):  # board Id specified is higher than boards connected
+            print("ERROR: Board ID passed in command line doesn't exist... Leaving.")
+            return
+        if id == -1 and len(dev_list) > 1:  # no board id specified but different boards connected
+            print("ERROR: Different boards are connected, please specify board ID... Leaving.")
+            return
+        if id == -1 and len(dev_list) == 1:  # one board connected and no board id specified
+            id = 0
         __, desc = self.detect_type(dev_list[id])
         self.init_system(desc, id)
         if self.type == 0:
@@ -174,6 +179,7 @@ class FTDIEeprom:
         self.display_eeprom_info()
 
     def write(self, id):
+        id = 0 if id == -1 else id
         dev_list = self.list_eeprom_devices()
         __, desc = self.detect_type(dev_list[id])
         self.init_system(desc, id)

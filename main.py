@@ -126,7 +126,7 @@ def main():
 
     parser_eeprom = subparser.add_parser('eeprom', help='EEPROM utility')
     parser_eeprom.add_argument('-m', '--mode', required=False, help='specify read or write to EEPROM', metavar='mode')
-    parser_eeprom.add_argument('-i', '--id', required=False, type=int, default=0,
+    parser_eeprom.add_argument('-i', '--id', required=False, type=int, default=-1,
                                help='specify id of the EEPROM returned by lsftdi', metavar='id')
     parser_eeprom.add_argument('-f', '--file', required=False, help='Helper file containing data to write',
                                metavar='file')
