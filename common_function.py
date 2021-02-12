@@ -195,18 +195,20 @@ def ftdic_read_gpio(ftdi_device):
         return ftdi_device.getBitMode()
 
 
-def ftdi_open(board_id, channel):
+def ftdi_open(board_id, channel, desc=None):
     """opens FTDI device function depending of the current OS"""
     if OS == 'Linux':
         return pylibftdi.Device(device_index=board_id, interface_select=channel + 1)
     elif OS == 'Windows':
+        add = desc.get('location')
         dev_list = ftdi.listDevices()
-        if channel:
-            i2c_channel = next(ind for ind, dev in enumerate(dev_list) if chr(dev[-1]) == 'B')
-            return ftdi.open(i2c_channel)
-        else:
-            gpio_channel = next(ind for ind, dev in enumerate(dev_list) if chr(dev[-1]) == 'A')
-            return ftdi.open(gpio_channel)
+        dev_channel = None
+        for i, d in enumerate(dev_list):
+            if chr(d[-1]) == chr(ord('A') + channel):
+                tmp_dev = ftdi.getDeviceInfoDetail(i)
+                if tmp_dev.get('location') == add + channel:
+                    dev_channel = tmp_dev.get('index')
+        return ftdi.open(dev_channel)
 
 
 def ftdic_setbitmode(ftdi_device, out_pins, value):

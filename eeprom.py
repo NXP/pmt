@@ -64,12 +64,12 @@ class FTDIEeprom:
 
     def init_system(self, desc, ind):
         if self.type == 1:  # i2c mode
-            self.device = common_func.ftdi_open(ind, 1)
+            self.device = common_func.ftdi_open(ind, 1, desc)
             common_func.ftdic_setbitmode(self.device, 0x0, 0x00)
             common_func.ftdic_setbitmode(self.device, 0x0, 0x02)
         else:  # serial mode
             if common_func.OS == 'Windows':
-                self.device = common_func.ftdi_open(ind, 0)
+                self.device = common_func.ftdi_open(ind, 0, desc)
             elif common_func.OS == 'Linux':
                 self.device = ftdi.Ftdi()
                 self.device.open(vendor=desc[0], product=desc[1], address=desc[3])
@@ -88,7 +88,10 @@ class FTDIEeprom:
             dev = self.device.list_devices()
             return dev
         elif common_func.OS == 'Windows':
-            dev.append(ftdi.getDeviceInfoDetail())
+            n = ftdi.listDevices()
+            for i, d in enumerate(n):
+                if chr(d[-1]) == 'A':
+                    dev.append(ftdi.getDeviceInfoDetail(i))
             return dev
 
     def collect_eeprom_info(self):
@@ -113,8 +116,12 @@ class FTDIEeprom:
                 return eeprom_mapping_table.INFOS[board_id_index]['datas'].get(soc, 'Unknown'), \
                     eeprom_mapping_table.INFOS[board_rev_index]['datas'].get(rev, 'Unknown')
             elif common_func.OS == 'Windows':
-                soc = self.device.eeUARead(board_id_index + 1)
-                rev = self.device.eeUARead(board_rev_index + 1)
+                out = self.device.eeUARead(3)
+                soc = 0
+                rev = 0
+                if len(out) > 0:
+                    soc = hex(((out[0] & 0xFC) >> 2) | ((out[1] - 1) << 6))
+                    rev = hex(out[2])
                 return eeprom_mapping_table.INFOS[board_id_index]['datas'].get(soc, 'Unknown'), \
                     eeprom_mapping_table.INFOS[board_rev_index]['datas'].get(rev, 'Unknown')
         else:
