@@ -434,6 +434,8 @@ class GUI(QtWidgets.QMainWindow):
             power_group = np.zeros([1, 2], dtype=np.float16)
             for rail_group in group['rails']:
                 rail = next((item for item in self.rail_buf if item['railnumber'] == rail_group), None)
+                if rail is None:
+                    return
                 power_rail = np.empty_like(rail['voltage'][1:])
                 power_rail[:, 0] = rail['voltage'][1:, 0]
                 power_rail[:, 1] = (rail['voltage'][1:, 1] * rail['current'][1:, 1])
@@ -458,6 +460,8 @@ class GUI(QtWidgets.QMainWindow):
 
         for i, d_rail in enumerate(self.b.rails_to_display):
             rail = next((item for item in self.rail_buf if item['railnumber'] == d_rail['name']), None)
+            if rail is None:
+                return
             voltage = rail['voltage'][1:]
             current = rail['current'][1:]
             power = np.empty_like(voltage)
