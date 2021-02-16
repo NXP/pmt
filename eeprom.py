@@ -193,7 +193,7 @@ class FTDIEeprom:
                 self.deinit()
                 print('** Done.')
             else:
-                print('I2C EEPROM - Which board are you using ? ((1) imx8dxlevk / (2) imx8mpevkpwr(a0 / a1) )')
+                print('I2C EEPROM - Which board are you using ? ( (1) imx8dxlevk / (2) imx8mpevkpwr(a0 / a1) )')
                 char = sys.stdin.read(2)
                 if char[1] == '1' or char[1] == '2':
                     print('** Writing to I2C EEPROM ...')

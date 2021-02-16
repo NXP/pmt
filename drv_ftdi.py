@@ -201,7 +201,8 @@ class Board:
     def get_all_board(self):
         boards_def = {'NXP i.MX8DXL EVK Board' : 'imx8dxlevk', 'NXP i.MX8DXL EVK DDR3 Board': 'imx8dxlevkddr3',
                       'NXP i.MX8MP EVK Board' : 'imx8mpevk', 'NXP i.MX8MP EVK PWR Board' : 'imx8mpevkpwr',
-                      'NXP i.MX8MP DDR3L Board' : 'imx8mpddr3l', 'NXP i.MX8MP DDR4 Board' : 'imx8mpddr4'}
+                      'NXP i.MX8MP DDR3L Board' : 'imx8mpddr3l', 'NXP i.MX8MP DDR4 Board' : 'imx8mpddr4',
+                      'NXP i.MX8ULP EVK Board' : 'imx8ulpevk'}
         boards_infos = []
         dev_list = self.eeprom.list_eeprom_devices()
         for ind in range(len(dev_list)):
@@ -213,7 +214,7 @@ class Board:
                     self.eeprom.deinit()
                     board_id = boards_def.get(board_id, 'Unknown')
                     if board_id != 'Unknown':
-                        if board_rev != 'Unknown' and board_id != 'imx8dxlevk': # temporary hack to be align with bcu (don't specify board revision for imx8dxlevk)
+                        if board_rev != 'Unknown' and board_id != 'imx8dxlevk' and board_id != 'imx8ulpevk': # temporary hack to be align with bcu (don't specify board revision for imx8dxlevk)
                             board_id = board_id + board_rev.lower()
                         boards_infos.append({'name': board_id, 'loc_id': ind})
                         break
@@ -223,7 +224,7 @@ class Board:
                 self.eeprom.deinit()
                 board_id = boards_def.get(board_id, 'Unknown')
                 if board_id != 'Unknown':
-                    if board_rev != 'Unknown' and board_id != 'imx8dxlevk': # temporary hack to be align with bcu (don't specify board revision for imx8dxlevk)
+                    if board_rev != 'Unknown' and board_id != 'imx8dxlevk' and board_id != 'imx8ulpevk': # temporary hack to be align with bcu (don't specify board revision for imx8dxlevk)
                         board_id = board_id + board_rev.lower()
                     boards_infos.append({'name': board_id, 'loc_id': ind})
             time.sleep(0.2)
@@ -527,7 +528,8 @@ class Board:
         FTDI_LOCK.acquire()
         for index, rail in enumerate(self.board_mapping_power):
             if rail['pac'][2] != self.board_mapping_power[index - 1]['pac'][2]:
-                self.pca9548_set_channel(rail)
+                if rail.get('pca9548'):
+                    self.pca9548_set_channel(rail)
                 add_write = (rail['pac'][1] << 1)
                 common_func.ftdi_i2c_start(self.ftdic, rail)
                 common_func.ftdi_i2c_write(self.ftdic, rail, add_write)
@@ -612,7 +614,8 @@ class Board:
             for index, rail in enumerate(self.board_mapping_power):
                 if len(self.board_mapping_power) == 1:
                     FTDI_LOCK.acquire()
-                    self.pca9548_set_channel(rail)
+                    if rail.get('pca9548'):
+                        self.pca9548_set_channel(rail)
                     self.reset_pac(rail)
                     voltage, current = self.block_read(rail, index, rail_per_pac[rail['pac'][2]])
                     FTDI_LOCK.release()
@@ -647,7 +650,8 @@ class Board:
                         # In all case we then proceed to reset the PAC with REFRESH command and do block read.
                         if rail['pca9548'][0] != self.board_mapping_power[index - 1]['pca9548'][0] or (
                                 len(rail_per_pac) == 1 and index < 1):
-                            self.pca9548_set_channel(rail)
+                            if rail.get('pca9548'):
+                                self.pca9548_set_channel(rail)
                         self.reset_pac(rail)
                         voltage, current = self.block_read(rail, index, rail_per_pac[rail['pac'][2]])
                         FTDI_LOCK.release()

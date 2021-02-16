@@ -5,6 +5,7 @@
 #    - NXP i.MX8MP EVK PWR Board
 #    - NXP i.MX8MP DDR3L Board
 #    - NXP i.MX8MP DDR4 Board
+#    - NXP i.MX8ULP EVK Board
 
 BOARD_ID: NXP i.MX8MP EVK PWR Board
 
@@ -19,7 +20,7 @@ BOARD_REV: A1
 # Complete SOC_ID with rwith following options:
 #    - i.MX8DXL
 #    - i.MX8MP
-#
+#    - i.MX8ULP
 
 SOC_ID: i.MX8MP
 
@@ -34,6 +35,8 @@ SOC_REV: A1
 # Complete SOC_ID with rwith following options:
 #    - PP7100BVM1ES
 #    - PCA9450CHN
+#    - PPF7100BMMA2ES
+#    - PIMX8UD7DVP10SA
 
 PMIC_ID: PCA9450CHN
 
