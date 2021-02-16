@@ -75,17 +75,16 @@ class FTDIEeprom:
                 self.device.open(vendor=desc[0], product=desc[1], address=desc[3])
 
     def show_devices(self):
-        dev = self.list_eeprom_devices()
-        ind = 0
-        for dev in reversed(dev):
+        dev_ = self.list_eeprom_devices()
+        for ind, dev in enumerate(dev_):
             print('ID: ' + str(ind) + ' --> ' + str(dev))
-            ind += 1
 
     def list_eeprom_devices(self):
         dev = []
         if common_func.OS == 'Linux':
             self.device = ftdi.Ftdi()
-            dev = self.device.list_devices()
+            tmp = self.device.list_devices()
+            dev = sorted(tmp, key=lambda tup: tup[0][3], reverse=True)
             return dev
         elif common_func.OS == 'Windows':
             n = ftdi.listDevices()
