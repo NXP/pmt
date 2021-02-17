@@ -40,7 +40,8 @@ gpio_supported_values = {
 
 supported_boards = ["imx8dxlevk", "imx8mpevkpwra0", "imx8mpevkpwra1", "imx8ulpevk"]
 
-board_eeprom = [{'board_name': 'imx8dxlevk', 'ftdi': [1, 0x60, 0x40], 'at24cxx': {'addr': 0x57, 'type': 0}},
+"""defines i2c eeprom of the different supported boards. Don't specify serial eeprom"""
+board_eeprom_i2c = [{'board_name': 'imx8dxlevk', 'ftdi': [1, 0x60, 0x40], 'at24cxx': {'addr': 0x57, 'type': 0}},
                 {'board_name': 'imx8mpevkpwra0', 'ftdi': [1, 0xF0, 0x00], 'at24cxx': {'addr': 0x50, 'type': 1}},
                 {'board_name': 'imx8mpevkpwra1', 'ftdi': [1, 0xF0, 0x00], 'at24cxx': {'addr': 0x50, 'type': 1}}
                ]

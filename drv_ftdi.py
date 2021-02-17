@@ -208,7 +208,7 @@ class Board:
         for ind in range(len(dev_list)):
             type, desc = self.eeprom.detect_type(dev_list[ind])
             if type == 1: # i2c eeprom
-                for pins in common.board_eeprom:
+                for pins in common.board_eeprom_i2c:
                     self.eeprom.init_system(desc, ind)
                     board_id, board_rev = self.eeprom.read_eeprom_board_id_rev(pins)
                     self.eeprom.deinit()

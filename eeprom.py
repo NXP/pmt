@@ -224,11 +224,11 @@ class FTDIEeprom:
             self.device.eeUAWrite(bytes(infos))
 
     def write_eeprom_i2c(self, address, data, ep_num):
-        add_write = (common.board_eeprom[ep_num]['at24cxx']['addr'] << 1) + 0
-        pins = common.board_eeprom[ep_num]
+        add_write = (common.board_eeprom_i2c[ep_num]['at24cxx']['addr'] << 1) + 0
+        pins = common.board_eeprom_i2c[ep_num]
         common_func.ftdi_i2c_start(self.device, pins)
         common_func.ftdi_i2c_write(self.device, pins, add_write)
-        if common.board_eeprom[ep_num]['at24cxx']['type']:
+        if common.board_eeprom_i2c[ep_num]['at24cxx']['type']:
             common_func.ftdi_i2c_write(self.device, pins, address >> 8)
             common_func.ftdi_i2c_write(self.device, pins, address & 0xFF)
         else:
@@ -250,12 +250,12 @@ class FTDIEeprom:
             else:
                 data = int(info[1], 16)
                 infos.append(data)
-        add_write = (common.board_eeprom[ep_num]['at24cxx']['addr'] << 1) + 0
-        pins = common.board_eeprom[ep_num]
+        add_write = (common.board_eeprom_i2c[ep_num]['at24cxx']['addr'] << 1) + 0
+        pins = common.board_eeprom_i2c[ep_num]
         common_func.ftdi_i2c_init(self.device, pins)
         common_func.ftdi_i2c_start(self.device, pins)
         common_func.ftdi_i2c_write(self.device, pins, add_write)
-        if common.board_eeprom[ep_num]['at24cxx']['type']:
+        if common.board_eeprom_i2c[ep_num]['at24cxx']['type']:
             common_func.ftdi_i2c_write(self.device, pins, address >> 8)
             common_func.ftdi_i2c_write(self.device, pins, address & 0xFF)
         else:
@@ -290,13 +290,13 @@ class FTDIEeprom:
         ret_data = []
         i = 0
         address = 0
-        add_write = (common.board_eeprom[ep_num]['at24cxx']['addr'] << 1) + 0
-        add_read = (common.board_eeprom[ep_num]['at24cxx']['addr'] << 1) + 1
-        pins = common.board_eeprom[ep_num]
+        add_write = (common.board_eeprom_i2c[ep_num]['at24cxx']['addr'] << 1) + 0
+        add_read = (common.board_eeprom_i2c[ep_num]['at24cxx']['addr'] << 1) + 1
+        pins = common.board_eeprom_i2c[ep_num]
         common_func.ftdi_i2c_init(self.device, pins)
         common_func.ftdi_i2c_start(self.device, pins)
         common_func.ftdi_i2c_write(self.device, pins, add_write)
-        if common.board_eeprom[ep_num]['at24cxx']['type']:
+        if common.board_eeprom_i2c[ep_num]['at24cxx']['type']:
             common_func.ftdi_i2c_write(self.device, pins, address >> 8)
             common_func.ftdi_i2c_write(self.device, pins, address & 0xFF)
         else:
