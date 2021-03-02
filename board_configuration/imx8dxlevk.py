@@ -53,7 +53,7 @@ mapping_power = [
     {'name': 'VDD_ANA', 'ftdi': [1, 0x60, 0x40], 'pca9548': [4, 0x70], 'pac': [1, 0x10, 4],
      'rsense': [4, 10000, 1], 'rsense_ctl': 'VDD_ANA_I_SW'},
     {'name': 'DDR_VDD1', 'ftdi': [1, 0x60, 0x40], 'pca9548': [4, 0x70], 'pac': [2, 0x10, 4], 'rsense': [10, 10]},
-    {'name': '1V8_1', 'ftdi': [1, 0x60, 0x40], 'pca9548': [4, 0x70], 'pac': [3, 0x10, 4], 'rsense': [60, 60]},
+    {'name': '1V8_1', 'ftdi': [1, 0x60, 0x40], 'pca9548': [4, 0x70], 'pac': [3, 0x10, 4], 'rsense': [600, 600]},
     {'name': '1V8_2', 'ftdi': [1, 0x60, 0x40], 'pca9548': [4, 0x70], 'pac': [4, 0x10, 4],
      'rsense': [1000, 1000]},
     {'name': '1V8_3', 'ftdi': [1, 0x60, 0x40], 'pca9548': [5, 0x70], 'pac': [1, 0x10, 5],
