@@ -91,6 +91,7 @@ ________________________________________________________________________________
 | set_gpio [-b] [-g] [-v]  | modify [-g] gpio name with specified [-v] value                               |
 | monitor [-b] [-m] [-l] [-i] [-t] [-d]  | display power / voltage / current data in [-m] mode. Possibility to load file |
 | eeprom [-m] [-i] [-f]    | Read or Write in FTDI / I2C EEPROM                                            |
+| server [-i] [-b] [-p]    | Use PMT as server and send power data through network with specified port     |
 
 #### Examples
 
@@ -122,7 +123,10 @@ $ python3 main.py monitor -b imx8dxlevk -t 15 -d test.csv
 $ python3 main.py eeprom -m read
 
 **write in EEPROM with Programmer Tool excel file:**
-python3 main.py eeprom -m write -f docs/EEPROM_Programmer_Tool.xlsx
+python3 main.py eeprom -m write -f docs/EEPROM_Programmer_Tool.yaml
+
+** Use PMT as server with port 65432:**
+python3 main.py server -b imx8dxlevk -p 65432
 
 ### GUI features
 

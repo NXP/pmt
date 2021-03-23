@@ -35,6 +35,7 @@ import drv_ftdi
 from board_configuration import common
 import gui
 import tui
+import server
 
 LOG_LEVEL = logging.WARNING
 
@@ -127,9 +128,15 @@ def main():
     parser_eeprom = subparser.add_parser('eeprom', help='EEPROM utility')
     parser_eeprom.add_argument('-m', '--mode', required=False, help='specify read or write to EEPROM', metavar='mode')
     parser_eeprom.add_argument('-i', '--id', required=False, type=int, default=-1,
-                               help='specify id of the EEPROM returned by lsftdi', metavar='id')
+                               help='specify id of the board returned by lsftdi', metavar='id')
     parser_eeprom.add_argument('-f', '--file', required=False, help='Helper file containing data to write',
                                metavar='file')
+
+    parser_server = subparser.add_parser('server', help='server utility')
+    parser_server.add_argument('-b', '--board', required=False, help='specify supported board name', metavar='board')
+    parser_server.add_argument('-i', '--id', required=False, type=int, default=-1,
+                               help='specify id of the board returned by lsftdi', metavar='id')
+    parser_server.add_argument('-p', '--port', required=True, type=int, help='specify the port to open', metavar='port')
 
     args = parser.parse_args()
     logging.debug(args)
@@ -193,6 +200,10 @@ def main():
                 board.board_eeprom_read()
             elif args.mode == 'write' or args.mode == 'w':
                 board.board_eeprom_write()
+
+    if args.command == 'server':
+        board = drv_ftdi.Board(args)
+        server.run_server(board, args.port)
 
 if __name__ == '__main__':
     main()
