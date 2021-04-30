@@ -17,7 +17,7 @@ The following packages must be installed for the tool to start:
  - oyaml
 
 The installation of all dependencies can be done by:
- - pip3 install -r requirements.txt
+ - pip3 install -r requirements_linux.txt
  - sudo apt install python3-pyqt5 libftdi1-dev
 
 ### Windows:
@@ -25,13 +25,16 @@ The installation of all dependencies can be done by:
 **During installation, click on "add Python 3.x to PATH" and check version after installation.**
 
 The following packages must be installed for the tool to start:
-- pip3 install windows-curses
-- pip3 install ftd2xx
-- pip3 install numpy
-- pip3 install pyqtgraph
-- pip3 install pyqt5
-- pip3 install pyftdi
-- pip3 install oyaml
+- windows-curses
+- ftd2xx
+- numpy
+- pyqtgraph
+- pyqt5
+- pyftdi
+- oyaml
+
+The installation of all dependencies can be done by:
+ - pip3 install -r requirements_windows.txt
 
 Install the FTDI D2XX library available here: https://www.ftdichip.com/Drivers/D2XX.htm
 Copy the files in the PMT directory.
