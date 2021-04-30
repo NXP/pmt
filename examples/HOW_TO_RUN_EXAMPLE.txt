@@ -1,0 +1,14 @@
+For importing files in PMT GUI mode, please run the command:
+
+python3 main.py monitor -m gui -l pathtofile/yourfilename
+
+Example:
+python3 main.py monitor -m gui -l examples/pmt_example.pmt
+
+User can import .pmt files or compatible .csv files.
+
+Note: Some features are disabled in GUI offline mode:
+    - Enabled / disabled PAC hardware filter,
+    - Enabled / disabled PAC bipolar mode,
+    - Switch resistance values,
+    - Start / pause / pause / redo the capture.
