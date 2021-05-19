@@ -42,7 +42,8 @@ INFOS = [
         '0x4': 'NXP i.MX8MP EVK PWR Board',
         '0x5': 'NXP i.MX8MP DDR3L Board',
         '0x6': 'NXP i.MX8MP DDR4 Board',
-        '0x7': 'NXP i.MX8ULP EVK Board'}
+        '0x7': 'NXP i.MX8ULP EVK Board',
+        '0x8': 'NXP VAL_BOARD_1 Board'}
     },
     {'name': 'BOARD_REV', 'datas': {
         '0x11': 'A0',
@@ -64,7 +65,8 @@ INFOS = [
     {'name': 'SOC_ID', 'datas': {
         '0x1': 'i.MX8DXL',
         '0x2': 'i.MX8MP',
-        '0x3': 'i.MX8ULP'}
+        '0x3': 'i.MX8ULP',
+        '0x4': 'VAL_BOARD_1'}
     },
     {'name': 'SOC_REV', 'datas': {
         '0x11': 'A0',
@@ -87,7 +89,8 @@ INFOS = [
         '0x1': 'PP7100BVM1ES',
         '0x2': 'PCA9450CHN',
         '0x3': 'PPF7100BMMA2ES',
-        '0x4': 'PCA9460AUK'}
+        '0x4': 'PCA9460AUK',
+        '0x5': 'PCA9450AAHN'}
     },
     {'name': 'PMIC_REV', 'datas': {
         '0x11': 'A0',
