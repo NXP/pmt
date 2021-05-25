@@ -42,7 +42,7 @@ mapping_power = [
     {'name': 'LDO1_CPU_1V1', 'ftdi': [1, 0xF0, 0x10], 'pac': [2, 0x12, 3], 'rsense': [100, 100]},
     {'name': 'BUCK1_LSW1_CPU_1V8', 'ftdi': [1, 0xF0, 0x10], 'pac': [3, 0x12, 3], 'rsense': [100, 100]},
     {'name': 'BUCK1_LSW4_CPU_1V8', 'ftdi': [1, 0xF0, 0x10], 'pac': [4, 0x12, 3], 'rsense': [100, 100]},
-    {'name': 'BUCK1_LSW2_CPU_1V8', 'ftdi': [1, 0xF0, 0x10], 'pac': [1, 0x13, 4], 'rsense': [250000, 250000]},
+    {'name': 'BUCK1_LSW2_CPU_1V8', 'ftdi': [1, 0xF0, 0x10], 'pac': [1, 0x13, 4], 'rsense': [100, 100]},
     {'name': 'BUCK1_LSW3_CPU_1V8', 'ftdi': [1, 0xF0, 0x10], 'pac': [2, 0x13, 4], 'rsense': [100, 100]},
     {'name': 'LDO4_CPU_1V8', 'ftdi': [1, 0xF0, 0x10], 'pac': [3, 0x13, 4], 'rsense': [100, 100]},
     {'name': 'LDO2_CPU_3V3', 'ftdi': [1, 0xF0, 0x10], 'pac': [4, 0x13, 4], 'rsense': [100, 100]},
@@ -56,14 +56,13 @@ power_groups = [
     {'name': 'GROUP_SOC_FULL',
      'rails': ['BUCK1_CPU_1V8', 'BUCK2_CPU_1V0', 'BUCK3_CPU_1V0', 'BUCK4_CPU_1V1', 'LDO1_CPU_1V1',
                'LDO1_CPU_1V1_0V6', 'BUCK1_LSW2_CPU_1V8', 'BUCK1_LSW3_CPU_1V8', 'LDO5_CPU_3V0', 'LDO2_CPU_3V3',
-               'BUCK1_LSW1_CPU_1V8',
-               'LDO4_CPU_1V8', 'BUCK1_LSW4_CPU_1V8']},
+               'BUCK1_LSW1_CPU_1V8', 'LDO4_CPU_1V8', 'BUCK1_LSW4_CPU_1V8']},
     {'name': 'GROUP_PLATFORM', 'rails': ['VSYS_5V0_4V2']}
 ]
 
 mapping_gpio_i2c = [
     {'name': 'FT_BOOT_MODE', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x20, 0, 0xFF], 'default': 0x40},
-    {'name': 'FT_REMOTE_EN', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x20, 1, 0x01], 'default': 0x50},
+    {'name': 'FT_REMOTE_EN', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x20, 1, 0x01], 'default': 0x51},
     {'name': 'FT_SYS_RST', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x20, 1, 0x02], 'default': 0x20},
     {'name': 'FT_ONOFF', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x20, 1, 0x04], 'default': 0x30},
     {'name': 'RESET0_B_BUFFER', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x20, 1, 0x08], 'default': 0},
