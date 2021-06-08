@@ -6,6 +6,8 @@
 Power Measurement Tool will provide general control of iMX8 development boards (reset, Boot mode, IO control), collect on-board power information and provide reports to user. It integrates a user-friendly GUI with many features based on pyqtgraph and PyQT5.
 This program runs with python3 under Linux and Windows.
 
+**PMT Application Note is available here: https://www.nxp.com/webapp/Download?colCode=AN13119&location=null**
+
 ## Installation
 ### Linux:
 The following packages must be installed for the tool to start:
