@@ -369,7 +369,9 @@ class Board:
         channel = pins['ftdi'][0]
         out_pins = 0
         logging.info('FTDI Initialization...')
-        self.ftdic = common_func.ftdi_open(self.id, channel)
+        dev_list =self.eeprom.list_eeprom_devices()
+        __, desc = self.eeprom.detect_type(dev_list[self.id])
+        self.ftdic = common_func.ftdi_open(self.id, channel, desc)
         if mode == 0:  # if GPIO mode
             for gpio in self.board_mapping_gpio:  # if channel 0, parse gpio default value of channel 0
                 if gpio['ftdi'][0] == channel:
