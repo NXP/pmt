@@ -48,6 +48,7 @@ SUB_INFOS_PLACE = [1, 11, 21, 31]
 def run_ui(board, args):
     """runs TUI and collects data in a thread"""
     rail_data = []
+    rail_buf = []
     v_now, c_now, p_now = (0 for i in range(3))
     v_min = []
     c_min = []
@@ -64,6 +65,7 @@ def run_ui(board, args):
         sys.exit()
     thread_process = threading.Thread(target=board.get_data)
     thread_process.start()
+    time.sleep(1)
     curr_time = 0
     time_start = time.time()
     curses.noecho()
@@ -77,6 +79,9 @@ def run_ui(board, args):
     curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK)
     curses.init_pair(5, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
 
+    for i, rail in enumerate(board.board_mapping_power):
+        rail_buf.append({'railnumber': rail['name'], 'current': np.array([[0, 0]], dtype=np.float16),
+                              'voltage': np.array([[0, 0]], dtype=np.float16)})
     # set static informations
     stdscr.border(0)
     stdscr.addstr(0, int(num_cols / 2), 'Power Measurements Tool', curses.A_BOLD)
@@ -136,9 +141,22 @@ def run_ui(board, args):
     # Update collected datas and updated view while q is not pressed
     while True:
         try:
+            remote_buf = []
             drv_ftdi.DATA_LOCK.acquire()
-            rail_buf = copy.deepcopy(board.data_buf)
+            for remote_rail in board.data_buf:
+                remote_buf.append(copy.deepcopy(remote_rail))
+                remote_rail['current'] = [[0, 0]]
+                remote_rail['voltage'] = [[0, 0]]
             drv_ftdi.DATA_LOCK.release()
+
+            for rail in remote_buf:
+                local_rail = next((item for item in rail_buf if item['railnumber'] == rail['railnumber']), None)
+                rail['voltage'].pop(0)
+                rail['current'].pop(0)
+                local_rail['voltage'] = np.append(local_rail['voltage'], np.array(rail['voltage'], dtype=np.float16),
+                                                  axis=0)
+                local_rail['current'] = np.append(local_rail['current'], np.array(rail['current'], dtype=np.float16),
+                                                  axis=0)
 
             char = stdscr.getch()
             if char == ord('0'):
@@ -154,9 +172,12 @@ def run_ui(board, args):
                     p_max[index] = 0
                 drv_ftdi.DATA_LOCK.acquire()
                 for rail in board.data_buf:
-                    rail['current'] = np.empty([1, 2], dtype=np.float16)
-                    rail['voltage'] = np.empty([1, 2], dtype=np.float16)
+                    rail['current'] = [[0, 0]]
+                    rail['voltage'] = [[0, 0]]
                 drv_ftdi.DATA_LOCK.release()
+                for rail in rail_buf:
+                    rail['current'] = [[0, 0]]
+                    rail['voltage'] = [[0, 0]]
                 v_avg = 0
                 c_avg = 0
                 p_avg = 0
@@ -171,11 +192,13 @@ def run_ui(board, args):
                 if railnumber < probe_number:
                     if board.rails_to_display[railnumber]['rsense'][0] != \
                             board.rails_to_display[railnumber]['rsense'][1]:
-                        board.switch_res(board.rails_to_display[railnumber], railnumber)
+                        rail = next((item for item in rail_buf if
+                                     item['railnumber'] == board.rails_to_display[railnumber]['name']), None)
+                        board.switch_res(rail, railnumber)
             for index, d_rail in enumerate(board.rails_to_display):
                 rail = next((item for item in rail_buf if item['railnumber'] == d_rail['name']), None)
                 rail2 = next((item for item in board.board_mapping_power if item['name'] == d_rail['name']), None)
-                if rail and rail['voltage'].shape[0] > 2:
+                if rail and len(rail['voltage']) > 2:
                     v_now = rail['voltage'][-1, 1]
                     rail_data.append(v_now)
                     v_avg = rail['voltage'][1:, 1].mean(0)
@@ -219,9 +242,9 @@ def run_ui(board, args):
                         avg_power_group = power_group[:, 1].mean()
                         min_power_group = power_group[:, 1].min()
                         max_power_group = power_group[:, 1].max()
-                        stdscr.addstr(6 + group_ind + ind, 20, "avg power: " + str(avg_power_group))
+                        stdscr.addstr(6 + group_ind + ind, 20, "avg power: " + str("%.2f" % avg_power_group))
                         stdscr.addstr(6 + group_ind + ind, 40, "min power: " + str("%.2f" % min_power_group))
-                        stdscr.addstr(6 + group_ind + ind, 60, "max power: " + str(max_power_group))
+                        stdscr.addstr(6 + group_ind + ind, 60, "max power: " + str("%.2f" % max_power_group))
 
                     ind_s = 0
                     for ind_m in range(len(MAIN_INFOS)):
@@ -291,11 +314,11 @@ def run_ui(board, args):
                 for rail_group in group['rails']:
                     rail = next((item for item in rail_buf if item['railnumber'] == rail_group),
                                 None)
-                    power_rail = np.empty_like(rail['voltage'][1:])
-                    power_rail[:, 0] = rail['voltage'][1:, 0]
-                    power_rail[:, 1] = (rail['voltage'][1:, 1] * rail['current'][1:, 1])
+                    power_rail = np.empty_like(rail['voltage'][1:array_size])
+                    power_rail[:, 0] = rail['voltage'][1:array_size, 0]
+                    power_rail[:, 1] = (rail['voltage'][1:array_size, 1] * rail['current'][1:array_size, 1])
                     if power_group.shape[0] > power_rail.shape[0]:
-                        power_group.resize(power_rail.shape)
+                        power_group.resize(power_rail.shape, refcheck=False)
                     elif power_rail.shape[0] - power_group.shape[0] <= 2:
                         power_rail.resize(power_group.shape)
                     power_group = power_group + power_rail

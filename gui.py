@@ -420,9 +420,20 @@ class GUI(QtWidgets.QMainWindow):
 
     def global_update(self):
         """stores in local buffer the shared variable with measured values"""
+        remote_buf = []
         drv_ftdi.DATA_LOCK.acquire()
-        self.rail_buf = copy.deepcopy(self.b.data_buf)
+        for remote_rail in self.b.data_buf:
+            remote_buf.append(copy.deepcopy(remote_rail))
+            remote_rail['current'] = [[0, 0]]
+            remote_rail['voltage'] = [[0, 0]]
         drv_ftdi.DATA_LOCK.release()
+
+        for rail in remote_buf:
+            local_rail = next((item for item in self.rail_buf if item['railnumber'] == rail['railnumber']), None)
+            rail['voltage'].pop(0)
+            rail['current'].pop(0)
+            local_rail['voltage'] = np.append(local_rail['voltage'], np.array(rail['voltage'], dtype=np.float16), axis=0)
+            local_rail['current'] = np.append(local_rail['current'], np.array(rail['current'], dtype=np.float16), axis=0)
         self.get_power_group()
         self.traces_update()
 
@@ -430,8 +441,8 @@ class GUI(QtWidgets.QMainWindow):
         """retrieves power groups data"""
         self.groups_buf = []
         for i, group in enumerate(self.b.power_groups):
-            self.groups_buf.append({'group_name': group['name'], 'power': np.zeros([1, 2], dtype=np.float16)})
-            power_group = np.zeros([1, 2], dtype=np.float16)
+            self.groups_buf.append({'group_name': group['name'], 'power': np.array([[0, 0]], dtype=np.float16)})
+            power_group = np.array([[0, 0]], dtype=np.float16)
             for rail_group in group['rails']:
                 rail = next((item for item in self.rail_buf if item['railnumber'] == rail_group), None)
                 if rail is None:
@@ -600,8 +611,9 @@ class GUI(QtWidgets.QMainWindow):
 
     def switch_res_changed(self, index):
         """switches the resistance and update the corresponding box if it has been correctly done"""
-        done, autorised = self.b.switch_res(self.b.rails_to_display[index], index)
-        if autorised:
+        rail = next((item for item in self.rail_buf if item['railnumber'] == self.b.rails_to_display[index]['name']), None)
+        done, authorized = self.b.switch_res(rail, index)
+        if authorized:
             if done:
                 curr_state = self.list_switch_res[index].text()
                 if curr_state == "L":
@@ -683,17 +695,17 @@ class GUI(QtWidgets.QMainWindow):
                         else:
                             data.append(rail['current'][1:array_size, 1] * rail['voltage'][1:array_size, 1])
                 if self.b.power_groups:
-                    power_group = np.zeros([1, 2], dtype=np.float16)
+                    power_group = np.array([[0, 0]], dtype=np.float16)
                     for group in self.b.power_groups:
                         headers.append(group['name'] + ' power (mW)')
                         for rail_group in group['rails']:
                             rail = next((item for item in self.rail_buf if item['railnumber'] == rail_group),
                                         None)
-                            power_rail = np.empty_like(rail['voltage'][1:])
-                            power_rail[:, 0] = rail['voltage'][1:, 0]
-                            power_rail[:, 1] = (rail['voltage'][1:, 1] * rail['current'][1:, 1])
+                            power_rail = np.empty_like(rail['voltage'][1:array_size])
+                            power_rail[:, 0] = rail['voltage'][1:array_size, 0]
+                            power_rail[:, 1] = (rail['voltage'][1:array_size, 1] * rail['current'][1:array_size, 1])
                             if power_group.shape[0] > power_rail.shape[0]:
-                                power_group.resize(power_rail.shape)
+                                power_group.resize(power_rail.shape, refcheck=False)
                             elif power_rail.shape[0] - power_group.shape[0] <= 2:
                                 power_rail.resize(power_group.shape)
                             power_group = power_group + power_rail
@@ -726,6 +738,11 @@ class GUI(QtWidgets.QMainWindow):
             if self.state == 'reinit':
                 self.stop_region.clear()
                 drv_ftdi.T_START = time.time()
+                drv_ftdi.DATA_LOCK.acquire()
+                for rail in self.b.data_buf:
+                    rail['current'] = [[0, 0]]
+                    rail['voltage'] = [[0, 0]]
+                drv_ftdi.DATA_LOCK.release()
             self.status_bar.showMessage("Recording")
             self.worker.resume_thread()
             self.timer.start(1000)
@@ -779,11 +796,9 @@ class GUI(QtWidgets.QMainWindow):
     def redo_record(self):
         """re initialization of the shared variable containing measured values"""
         self.stop_record()
-        drv_ftdi.DATA_LOCK.acquire()
-        for rail in self.b.data_buf:
-            rail['current'] = np.empty([1, 2], dtype=np.float16)
-            rail['voltage'] = np.empty([1, 2], dtype=np.float16)
-        drv_ftdi.DATA_LOCK.release()
+        for rail in self.rail_buf:
+            rail['current'] = [[0, 0]]
+            rail['voltage'] = [[0, 0]]
         self.zoom_graph.clear()
         self.zoom_graph_vb.clear()
         self.global_graph.clear()
@@ -854,40 +869,30 @@ class GUI(QtWidgets.QMainWindow):
                                 elif not 'GROUP' in r.split(' ')[0]:
                                     self.b.rails_to_display.append({'name': r.split(' ')[0]})
                                     self.rail_buf.append(
-                                        {'railnumber': r.split(' ')[0], 'current': np.empty([1, 2], dtype=np.float16),
-                                         'voltage': np.empty([1, 2], dtype=np.float16)})
+                                        {'railnumber': r.split(' ')[0], 'current': np.array([[0, 0]], dtype=np.float16),
+                                         'voltage': np.array([[0, 0]], dtype=np.float16)})
                                     last_el = r.split(' ')[0]
                                 else:
                                     self.b.power_groups.append({'name': r.split(' ')[0]})
                                     self.groups_buf.append(
-                                        {'group_name': r.split(' ')[0], 'power': np.zeros([1, 2], dtype=np.float16)})
+                                        {'group_name': r.split(' ')[0], 'power': np.array([[0, 0]], dtype=np.float16)})
                                     last_el = r.split(' ')[0]
                             first_run = False
                         else:
                             ind = 0
                             for i in range(1, len(self.rail_buf) * 3, 3):
-                                tmp_cur = self.rail_buf[ind]['current']
-                                tmp_volt = self.rail_buf[ind]['voltage']
-                                self.rail_buf[ind]['current'] = np.empty([(self.rail_buf[ind]['current'].shape[0] + 1), 2],
-                                                                         dtype=np.float16)
-                                self.rail_buf[ind]['voltage'] = np.empty([(self.rail_buf[ind]['voltage'].shape[0] + 1), 2],
-                                                                         dtype=np.float16)
-                                self.rail_buf[ind]['current'][:tmp_cur.shape[0]] = tmp_cur
-                                self.rail_buf[ind]['voltage'][:tmp_cur.shape[0]] = tmp_volt
-                                self.rail_buf[ind]['current'][tmp_cur.shape[0]:, 0] = row[0]
-                                self.rail_buf[ind]['voltage'][tmp_cur.shape[0]:, 0] = row[0]
-                                self.rail_buf[ind]['voltage'][tmp_cur.shape[0]:, 1] = row[i]
-                                self.rail_buf[ind]['current'][tmp_cur.shape[0]:, 1] = row[i+1]
+                                self.rail_buf[ind]['current'] = np.append(self.rail_buf[ind]['current'],
+                                                                          np.array([[float(row[0]), float(row[i+1])]],
+                                                                                   dtype=np.float16), axis=0)
+                                self.rail_buf[ind]['voltage'] = np.append(self.rail_buf[ind]['voltage'],
+                                                                          np.array([[float(row[0]), float(row[i])]],
+                                                                                   dtype=np.float16), axis=0)
                                 ind += 1
 
                             ind_g = 0
                             for i in range(1, len(self.groups_buf) + 1):
-                                tmp_power = self.groups_buf[ind_g]['power']
-                                self.groups_buf[ind_g]['power'] = np.empty(
-                                    [(self.groups_buf[ind_g]['power'].shape[0] + 1), 2], dtype=np.float16)
-                                self.groups_buf[ind_g]['power'][:tmp_power.shape[0]] = tmp_power
-                                self.groups_buf[ind_g]['power'][tmp_power.shape[0]:, 0] = row[0]
-                                self.groups_buf[ind_g]['power'][tmp_power.shape[0]:, 1] = row[(ind * 3) + i]
+                                self.groups_buf[ind_g]['power'] = np.append(self.groups_buf[ind_g]['power'], np.array(
+                                    [[row[0], row[(ind * 3) + i]]], dtype=np.float16), axis=0)
                                 ind_g += 1
 
             elif self.args.load.split('.')[1] == 'pmt':
@@ -907,6 +912,9 @@ class GUI(QtWidgets.QMainWindow):
                 print('Please enter valid file to load')
 
         if not self.args.load:
+            for i, rail in enumerate(self.b.board_mapping_power):
+                self.rail_buf.append({'railnumber': rail['name'], 'current': [[0, 0]],
+                                      'voltage': [[0, 0]]})
             self.setWindowTitle('Power Measurement Tool Live Capture')
             self.menu_bar.setNativeMenuBar(False)
             self.filemenu = self.menu_bar.addMenu('File')

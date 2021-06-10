@@ -468,25 +468,25 @@ class Board:
     def switch_res(self, rail, rail_num):
         """checks if switching desired resistance is authorised and return the status"""
         switch_res_permitted = False
-        gpio = next((item for item in self.board_mapping_gpio_i2c if item['name'] == rail['rsense_ctl']), None)
-        if CURR_RSENSE.get(rail['name']) == rail['rsense'][1]:  # switch low_current shunt to high_current shunt
-            gpio_value = rail['rsense'][2]
-            next_rsense = rail['rsense'][0]
+        gpio = next((item for item in self.board_mapping_gpio_i2c if item['name'] == self.rails_to_display[rail_num]['rsense_ctl']), None)
+        if CURR_RSENSE.get(self.rails_to_display[rail_num]['name']) == self.rails_to_display[rail_num]['rsense'][1]:  # switch low_current shunt to high_current shunt
+            gpio_value = self.rails_to_display[rail_num]['rsense'][2]
+            next_rsense = self.rails_to_display[rail_num]['rsense'][0]
             switch_res_permitted = True
         else:
-            sampling_rate = self.data_buf[rail_num]['current'].shape[0] / self.data_buf[rail_num]['current'][-1, 0]
+            sampling_rate = rail['current'].shape[0] / rail['current'][-1, 0]
             number_of_val = int(sampling_rate / 3)
-            cur_limit = (100 / rail['rsense'][1]) * 1000
+            cur_limit = (100 / self.rails_to_display[rail_num]['rsense'][1]) * 1000
             cur_limit *= (1 - (program_config.LOW_SWITCH_RESISTANCE_OFFSET / 100))
             DATA_LOCK.acquire()
-            avg_current = self.data_buf[rail_num]['current'][-number_of_val:, 1].mean(0)
+            avg_current = rail['current'][-number_of_val:, 1].mean(0)
             DATA_LOCK.release()
             if avg_current > cur_limit:
                 return False, switch_res_permitted
             else:
-                gpio_value = not rail['rsense'][2]
+                gpio_value = not self.rails_to_display[rail_num]['rsense'][2]
                 switch_res_permitted = True
-                next_rsense = rail['rsense'][1]
+                next_rsense = self.rails_to_display[rail_num]['rsense'][1]
         if switch_res_permitted:
             FTDI_LOCK.acquire()
             self.setgpio(gpio, gpio_value * 0xFF)
@@ -495,11 +495,10 @@ class Board:
             if (check_value / gpio['pca6416'][2]) != gpio_value:
                 return False, switch_res_permitted
             else:
-                CURR_RSENSE[rail['name']] = next_rsense
-                if len(rail['pac']) > 3:  # in case of 8MP_EVK with PM rail
-                    temp = rail['pac'][0]
-                    rail['pac'][0] = rail['pac'][3]
-                    rail['pac'][3] = temp
+                CURR_RSENSE[self.rails_to_display[rail_num]['name']] = next_rsense
+                if len(self.rails_to_display[rail_num]['pac']) > 3:  # in case of 8MP_EVK with PM rail
+                    self.rails_to_display[rail_num]['pac'][0], self.rails_to_display[rail_num]['pac'][3] = \
+                        self.rails_to_display[rail_num]['pac'][3], self.rails_to_display[rail_num]['pac'][0]
                 return True, switch_res_permitted
 
     def init_res(self, rail):
@@ -590,8 +589,8 @@ class Board:
         self.init_system(self.board_mapping_power[0])
         for index, rail in enumerate(self.board_mapping_power):
             self.init_res(rail)
-            self.data_buf.append({'railnumber': rail['name'], 'current': np.empty([1, 2], dtype=np.float16),
-                                  'voltage': np.empty([1, 2], dtype=np.float16)})
+            self.data_buf.append({'railnumber': rail['name'], 'current': [[0, 0]],
+                                  'voltage': [[0, 0]]})
             if len(self.board_mapping_power) == 1:
                 rail_of_pac = 1
                 rail_per_pac[rail['pac'][2]] = rail_of_pac
@@ -624,21 +623,9 @@ class Board:
                     t_stop = time.time()
                     DATA_LOCK.acquire()
                     for i in range(rail_per_pac[rail['pac'][2]]):
-                        tmp_cur = self.data_buf[index + i]['current']
-                        tmp_volt = self.data_buf[index + i]['voltage']
-                        self.data_buf[index + i]['current'] = np.empty(
-                            [(self.data_buf[index + i]['current'].shape[0] + 1), 2],
-                            dtype=np.float16)
-                        self.data_buf[index + i]['voltage'] = np.empty(
-                            [(self.data_buf[index + i]['voltage'].shape[0] + 1), 2],
-                            dtype=np.float16)
-                        self.data_buf[index + i]['current'][:tmp_cur.shape[0]] = tmp_cur
-                        self.data_buf[index + i]['voltage'][:tmp_volt.shape[0]] = tmp_volt
-                        self.data_buf[index + i]['current'][tmp_cur.shape[0]:, 0] = t_stop - T_START
-                        self.data_buf[index + i]['voltage'][tmp_volt.shape[0]:, 0] = t_stop - T_START
-                        self.data_buf[index + i]['voltage'][tmp_volt.shape[0]:, 1] = voltage[i]
-                        self.data_buf[index + i]['current'][tmp_volt.shape[0]:, 1] = current[i] / CURR_RSENSE[
-                            self.data_buf[index + i]['railnumber']]
+                        self.data_buf[index + i]['current'].append(
+                            [t_stop - T_START, current[i] / CURR_RSENSE[self.data_buf[index + i]['railnumber']]])
+                        self.data_buf[index + i]['voltage'].append([t_stop - T_START, voltage[i]])
                     DATA_LOCK.release()
                 else:
                     # We check if the PAC of the current rail is different to the precedent rail, if yes then we can continue
@@ -662,19 +649,7 @@ class Board:
                         for i in range(rail_per_pac[rail['pac'][2]]):
                             if FLAG_PAUSE_CAPTURE:
                                 break
-                            tmp_cur = self.data_buf[index + i]['current']
-                            tmp_volt = self.data_buf[index + i]['voltage']
-                            self.data_buf[index + i]['current'] = np.empty(
-                                [(self.data_buf[index + i]['current'].shape[0] + 1), 2],
-                                dtype=np.float16)
-                            self.data_buf[index + i]['voltage'] = np.empty(
-                                [(self.data_buf[index + i]['voltage'].shape[0] + 1), 2],
-                                dtype=np.float16)
-                            self.data_buf[index + i]['current'][:tmp_cur.shape[0]] = tmp_cur
-                            self.data_buf[index + i]['voltage'][:tmp_volt.shape[0]] = tmp_volt
-                            self.data_buf[index + i]['current'][tmp_cur.shape[0]:, 0] = t_stop - T_START
-                            self.data_buf[index + i]['voltage'][tmp_volt.shape[0]:, 0] = t_stop - T_START
-                            self.data_buf[index + i]['voltage'][tmp_volt.shape[0]:, 1] = voltage[i]
-                            self.data_buf[index + i]['current'][tmp_volt.shape[0]:, 1] = current[i] / CURR_RSENSE[
-                                self.data_buf[index + i]['railnumber']]
+                            self.data_buf[index + i]['current'].append(
+                                [t_stop - T_START, current[i] / CURR_RSENSE[self.data_buf[index + i]['railnumber']]])
+                            self.data_buf[index + i]['voltage'].append([t_stop - T_START, voltage[i]])
                         DATA_LOCK.release()
