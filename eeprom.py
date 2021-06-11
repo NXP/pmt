@@ -89,8 +89,11 @@ class FTDIEeprom:
         elif common_func.OS == 'Windows':
             n = ftdi.listDevices()
             for i, d in enumerate(n):
-                if chr(d[-1]) == 'A':
-                    dev.append(ftdi.getDeviceInfoDetail(i))
+                if d != b'':
+                    if chr(d[-1]) == 'A':
+                        dev.append(ftdi.getDeviceInfoDetail(i))
+                else:
+                    pass
             return dev
 
     def collect_eeprom_info(self):

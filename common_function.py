@@ -204,10 +204,13 @@ def ftdi_open(board_id, channel, desc=None):
         dev_list = ftdi.listDevices()
         dev_channel = None
         for i, d in enumerate(dev_list):
-            if chr(d[-1]) == chr(ord('A') + channel):
-                tmp_dev = ftdi.getDeviceInfoDetail(i)
-                if tmp_dev.get('location') == add + channel:
-                    dev_channel = tmp_dev.get('index')
+            if d != b'':
+                if chr(d[-1]) == chr(ord('A') + channel):
+                    tmp_dev = ftdi.getDeviceInfoDetail(i)
+                    if tmp_dev.get('location') == add + channel:
+                        dev_channel = tmp_dev.get('index')
+            else:
+                pass
         return ftdi.open(dev_channel)
 
 
