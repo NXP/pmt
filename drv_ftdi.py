@@ -570,14 +570,12 @@ class Board:
         common_func.ftdi_i2c_write(self.ftdic, pins, register)
         common_func.ftdi_i2c_start(self.ftdic, pins)
         common_func.ftdi_i2c_write(self.ftdic, pins, add_read)
-        for i in range(15):
-            data.append(common_func.ftdi_i2c_read(self.ftdic, pins, 0))
-        data.append(common_func.ftdi_i2c_read(self.ftdic, pins, 1))
+        data = common_func.ftdi_i2c_read_buffer(self.ftdic, pins, 16)
         for i in range(rail_of_pac):
             channel = self.board_mapping_power[i + index]['pac'][0]
-            volt = (((data[(2 * channel) - 2][0] << 8) + data[(2 * channel) - 1][0]) * 32) / 65535
+            volt = (((data[(2 * channel) - 2] << 8) + data[(2 * channel) - 1]) * 32) / 65535
             voltage.append(volt)
-            curr = self.process_current((((data[8 + (2 * channel) - 2][0] << 8) + data[8 + (2 * channel) - 1][0]) * 1))
+            curr = self.process_current((((data[8 + (2 * channel) - 2] << 8) + data[8 + (2 * channel) - 1]) * 1))
             current.append(curr)
         return voltage, current
 

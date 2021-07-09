@@ -41,8 +41,8 @@ import numpy as np
 
 import drv_ftdi
 
-PROGRAM_VERSION = 'PMT v2.3.1'
-COPYRIGHT_INFO = 'Copyright 2020 NXP'
+PROGRAM_VERSION = 'PMT v2.3.2'
+COPYRIGHT_INFO = 'Copyright 2020-2021 NXP'
 
 COLORS = ["#8B7825", "#842D2C", "#5E3450", "#00253D", "#205632", "#4E2B1B", "#6C561A", "#8A2533", "#5A2C5D", "#005474",
           "#4C762A", "#463626", "#6E4A1C", "#802247", "#2E1B45", "#00454E", "#554E24", "#2D2926", "#BE4C00", "#691F42",

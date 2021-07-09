@@ -121,6 +121,35 @@ def ftdi_i2c_read(ftdi_device, pins, is_nack):
     return receive
 
 
+def ftdi_i2c_read_buffer(ftdi_device, pins, len):
+    """low-level I2C read"""
+    logging.debug('ftdi_i2c_read_buffer')
+    val_bitmask = pins['ftdi'][2]
+    dir_bitmask = pins['ftdi'][1]
+    buf = []
+    for j in range(len):
+        buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
+        buf.append(ft_def.VALUE_SCLLOW_SDALOW | val_bitmask)
+        buf.append(ft_def.DIRECTION_SCLOUT_SDAIN | dir_bitmask)
+        buf.append(ft_def.MPSSE_CMD_DATA_IN_BITS_POS_EDGE)
+        buf.append(ft_def.DATA_SIZE_8BITS)
+        buf.append(ft_def.MPSSE_CMD_SEND_IMMEDIATE)
+        buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
+        buf.append(ft_def.VALUE_SCLLOW_SDALOW | val_bitmask)
+        buf.append(ft_def.DIRECTION_SCLOUT_SDAOUT | dir_bitmask)
+        buf.append(ft_def.MPSSE_CMD_DATA_OUT_BITS_NEG_EDGE)
+        buf.append(0x00)
+        if j < len - 1:
+            buf.append(0x00)
+        else:
+            buf.append(0xFF)
+    buf_to_send = bytes(buf)
+    ftdic_write(ftdi_device, buf_to_send)
+    time.sleep(0.0005)
+    receive = ftdi_device.read(len)
+    return receive
+
+
 def ftdi_i2c_write(ftdi_device, pins, data):
     """low-level I2C write"""
     logging.debug('ftdi_i2c_write')
