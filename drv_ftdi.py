@@ -640,9 +640,8 @@ class Board:
                         FTDI_LOCK.acquire()
                         # We have to change the channel of the PCA if the current one is different to previous rail.
                         # In all case we then proceed to reset the PAC with REFRESH command and do block read.
-                        if rail['pca9548'][0] != self.board_mapping_power[index - 1]['pca9548'][0] or (
+                        if rail.get('pca9548') and rail['pca9548'][0] != self.board_mapping_power[index - 1]['pca9548'][0] or (
                                 len(rail_per_pac) == 1 and index < 1):
-                            if rail.get('pca9548'):
                                 self.pca9548_set_channel(rail)
                         self.reset_pac(rail)
                         voltage, current = self.block_read(rail, index, rail_per_pac[rail['pac'][2]])
