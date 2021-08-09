@@ -43,7 +43,8 @@ INFOS = [
         '0x5': 'NXP i.MX8MP DDR3L Board',
         '0x6': 'NXP i.MX8MP DDR4 Board',
         '0x7': 'NXP i.MX8ULP EVK Board',
-        '0x8': 'NXP VAL_BOARD_1 Board'}
+        '0x8': 'NXP VAL_BOARD_1 Board',
+        '0x9': 'NXP VAL_BOARD_2 Board'}
     },
     {'name': 'BOARD_REV', 'datas': {
         '0x11': 'A0',
@@ -66,7 +67,8 @@ INFOS = [
         '0x1': 'i.MX8DXL',
         '0x2': 'i.MX8MP',
         '0x3': 'i.MX8ULP',
-        '0x4': 'VAL_BOARD_1'}
+        '0x4': 'VAL_BOARD_1',
+        '0x5': 'VAL_BOARD_2'}
     },
     {'name': 'SOC_REV', 'datas': {
         '0x11': 'A0',

@@ -207,7 +207,8 @@ class Board:
         boards_def = {'NXP i.MX8DXL EVK Board' : 'imx8dxlevk', 'NXP i.MX8DXL EVK DDR3 Board': 'imx8dxlevkddr3',
                       'NXP i.MX8MP EVK Board' : 'imx8mpevk', 'NXP i.MX8MP EVK PWR Board' : 'imx8mpevkpwr',
                       'NXP i.MX8MP DDR3L Board' : 'imx8mpddr3l', 'NXP i.MX8MP DDR4 Board' : 'imx8mpddr4',
-                      'NXP i.MX8ULP EVK Board' : 'imx8ulpevk', 'NXP VAL_BOARD_1 Board' : 'val_board_1'}
+                      'NXP i.MX8ULP EVK Board' : 'imx8ulpevk', 'NXP VAL_BOARD_1 Board' : 'val_board_1',
+                      'NXP VAL_BOARD_2 Board' : 'val_board_2'}
         boards_infos = []
         dev_list = self.eeprom.list_eeprom_devices()
         for ind in range(len(dev_list)):
@@ -219,7 +220,8 @@ class Board:
                     self.eeprom.deinit()
                     board_id = boards_def.get(board_id, 'Unknown')
                     if board_id != 'Unknown':
-                        if board_rev != 'Unknown' and board_id != 'imx8dxlevk' and board_id != 'imx8ulpevk' and board_id != 'val_board_1': # temporary hack to be align with bcu (don't specify board revision for these boards)
+                        if board_rev != 'Unknown' and board_id != 'imx8dxlevk' and board_id != 'imx8ulpevk'\
+                                and board_id != 'val_board_1' and board_id != 'val_board_2': # temporary hack to be align with bcu (don't specify board revision for these boards)
                             board_id = board_id + board_rev.lower()
                         boards_infos.append({'name': board_id, 'loc_id': ind})
                         break
@@ -229,7 +231,8 @@ class Board:
                 self.eeprom.deinit()
                 board_id = boards_def.get(board_id, 'Unknown')
                 if board_id != 'Unknown':
-                    if board_rev != 'Unknown' and board_id != 'imx8dxlevk' and board_id != 'imx8ulpevk' and board_id != 'val_board_1': # temporary hack to be align with bcu (don't specify board revision for these boards)
+                    if board_rev != 'Unknown' and board_id != 'imx8dxlevk' and board_id != 'imx8ulpevk'\
+                            and board_id != 'val_board_1' and board_id != 'val_board_2': # temporary hack to be align with bcu (don't specify board revision for these boards)
                         board_id = board_id + board_rev.lower()
                     boards_infos.append({'name': board_id, 'loc_id': ind})
             time.sleep(0.2)
@@ -274,7 +277,8 @@ class Board:
         logging.debug('pca_write')
         add_write = (pins['pca6416'][0] << 1) + 0
         add_read = (pins['pca6416'][0] << 1) + 1
-        conf_cmd = (pins['pca6416'][1]) + 0x02
+        conf_cmd = (pins['pca6416'][1])
+        conf_cmd = conf_cmd + 0x02 if (self.name != 'val_board_1' and self.name != 'val_board_2') else conf_cmd + 0x04
         common_func.ftdi_i2c_start(self.ftdic, pins)
         status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
         if status != 0: return status
@@ -302,7 +306,8 @@ class Board:
         logging.debug('pca6416_set_direction')
         add_write = (pins['pca6416'][0] << 1) + 0
         add_read = (pins['pca6416'][0] << 1) + 1
-        conf_cmd = (pins['pca6416'][1]) + 0x06
+        conf_cmd = (pins['pca6416'][1])
+        conf_cmd = conf_cmd + 0x06 if (self.name != 'val_board_1' and self.name != 'val_board_2') else conf_cmd + 0x0C
         common_func.ftdi_i2c_start(self.ftdic, pins)
         status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
         if status != 0: return status
@@ -330,7 +335,8 @@ class Board:
         logging.debug('pca_get_output')
         add_write = (pins['pca6416'][0] << 1) + 0
         add_read = (pins['pca6416'][0] << 1) + 1
-        conf_cmd = (pins['pca6416'][1]) + 0x02
+        conf_cmd = (pins['pca6416'][1])
+        conf_cmd = conf_cmd + 0x02 if (self.name != 'val_board_1' and self.name != 'val_board_2') else conf_cmd + 0x04
         common_func.ftdi_i2c_start(self.ftdic, pins)
         status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
         if status != 0: return status
@@ -640,8 +646,9 @@ class Board:
                         FTDI_LOCK.acquire()
                         # We have to change the channel of the PCA if the current one is different to previous rail.
                         # In all case we then proceed to reset the PAC with REFRESH command and do block read.
-                        if rail.get('pca9548') and rail['pca9548'][0] != self.board_mapping_power[index - 1]['pca9548'][0] or (
-                                len(rail_per_pac) == 1 and index < 1):
+                        if rail.get('pca9548') and self.board_mapping_power[index - 1].get('pca9548'):
+                            if rail['pca9548'][0] != self.board_mapping_power[index - 1]['pca9548'][0] or (
+                            len(rail_per_pac) == 1 and index < 1):
                                 self.pca9548_set_channel(rail)
                         self.reset_pac(rail)
                         voltage, current = self.block_read(rail, index, rail_per_pac[rail['pac'][2]])

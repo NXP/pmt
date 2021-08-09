@@ -37,6 +37,7 @@
 #    - NXP i.MX8MP DDR4 Board
 #    - NXP i.MX8ULP EVK Board
 #    - NXP VAL_BOARD_1 Board
+#    - NXP VAL_BOARD_2 Board
 
 BOARD_ID: NXP i.MX8MP EVK PWR Board
 
@@ -53,6 +54,7 @@ BOARD_REV: A1
 #    - i.MX8MP
 #    - i.MX8ULP
 #    - VAL_BOARD_1
+#    - VAL_BOARD_2
 
 SOC_ID: i.MX8MP
 
