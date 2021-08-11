@@ -1019,10 +1019,8 @@ class GUI(QtWidgets.QMainWindow):
             self.save_png = self.filemenu.addAction('Save capture as .png', self.save_png)
             self.exit = self.filemenu.addAction('Exit')
             self.exit.triggered.connect(self.closeEvent)
-
-        self.settingmenu = self.menu_bar.addMenu('Settings')
-        self.settingmenu.setToolTipsVisible(True)
-        if not self.args.load:
+            self.settingmenu = self.menu_bar.addMenu('Settings')
+            self.settingmenu.setToolTipsVisible(True)
             self.en_hw_filter = QtWidgets.QAction("Enable PAC hardware filter", self.settingmenu, checkable=True)
             self.en_hw_filter.setToolTip("Use the PAC's rolling average of eight most recent measurements")
             self.en_bipolar = QtWidgets.QAction("Enable PAC bipolar values", self.settingmenu, checkable=True)
