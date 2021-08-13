@@ -349,7 +349,6 @@ class GUI(QtWidgets.QMainWindow):
         self.list_groups_label = []
         self.list_temperature_label = []
         self.list_menu = []
-        self.list_menu_g = []
         self.list_switch_res = []
         self.list_color_rails = []
         self.list_color_groups = []
@@ -1167,8 +1166,6 @@ class GUI(QtWidgets.QMainWindow):
                 self.list_color_groups.append(pg.ColorButton(color=GROUPS_COLORS[i]))
                 self.list_color_groups[i].setMinimumHeight(30)
                 self.list_color_groups[i].setMinimumWidth(30)
-                self.list_menu_g.append(QtGui.QMenu())
-                self.list_groups_label[i].setMenu(self.list_menu_g[i])
                 self.list_groups_p.append(QtGui.QCheckBox())
                 self.list_groups_p[i].setChecked(False)
                 self.list_groups_p[i].stateChanged.connect(self.g_power_changed)
