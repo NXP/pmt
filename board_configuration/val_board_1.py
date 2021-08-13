@@ -147,3 +147,5 @@ boot_modes = {
     'usb': 0x01,
     'internal_boot': 0x02
 }
+
+temperature_sensor = {'ftdi': [1, 0x60, 0x40], 'sensor': [0x48]}

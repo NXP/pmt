@@ -51,10 +51,9 @@ COLORS = ["#8B7825", "#842D2C", "#5E3450", "#00253D", "#205632", "#4E2B1B", "#6C
 
 GROUPS_COLORS = ["#4FA383", "#007A4D", "#95A7C8", "#385C9B"]
 
-FLAGS = {'display_all': False}
+TEMP_COLORS = ["#4CE514"]
 
-WINDOW_WIDTH = 1280
-WINDOW_HEIGHT = 768
+FLAGS = {'display_all': False, 'voltage_displayed_count': 0}
 
 pg.setConfigOption('background', 'w')
 pg.setConfigOption('foreground', 'k')
@@ -100,13 +99,18 @@ class SplashScreen():
 class Worker(QtCore.QObject):
     """creates worker class for thread"""
 
-    def __init__(self, board):
+    def __init__(self, board, type):
         QtCore.QObject.__init__(self)
         self.board = board
+        self.type = type
 
     def do_work(self):
-        """runs function for collecting data"""
-        self.board.get_data()
+        """runs function for collecting power data or temperature data"""
+        if self.type == 'power':
+            self.board.get_data()
+        else:
+            time.sleep(0.5)
+            self.board.process_temperature()
 
     def pause_thread(self):
         drv_ftdi.FLAG_PAUSE_CAPTURE = True
@@ -335,17 +339,21 @@ class GUI(QtWidgets.QMainWindow):
         self.args = args
         self.rail_buf = []
         self.groups_buf = []
+        self.temperature_buf = []
         self.list_rails_p = []
         self.list_groups_p = []
         self.list_rails_v = []
         self.list_rails_c = []
+        self.list_groups_t = []
         self.list_rails_label = []
         self.list_groups_label = []
+        self.list_temperature_label = []
         self.list_menu = []
         self.list_menu_g = []
         self.list_switch_res = []
         self.list_color_rails = []
         self.list_color_groups = []
+        self.list_color_temperature = []
         self.list_right_lay_n = []
         self.list_right_lay_group_n = []
         self.list_right_lay_p = []
@@ -359,11 +367,13 @@ class GUI(QtWidgets.QMainWindow):
         self.winmenu = QtGui.QMenu()
         self.status_bar = self.statusBar()
         self.spacer = QtGui.QWidget()
+        self.spacer1 = QtGui.QWidget()
         self.wid_rail_scrollbar = QtGui.QWidget()
         self.rail_scrollbar = QtWidgets.QScrollArea()
         self.global_lay = QtGui.QHBoxLayout()
         self.button_lay = QtGui.QGridLayout()
         self.group_lay = QtGui.QGridLayout()
+        self.temperature_lay = QtGui.QGridLayout()
         self.left_lay = QtGui.QVBoxLayout()
         self.plot_lay = QtGui.QGridLayout()
         self.right_lay = QtGui.QVBoxLayout()
@@ -379,9 +389,10 @@ class GUI(QtWidgets.QMainWindow):
         self.stop_region = []
         self.stop = 0
         self.resume = 0
-        self.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
         self.thread_data = QtCore.QThread(parent=self)
-        self.worker = Worker(self.b)
+        self.worker = Worker(self.b, 'power')
+        self.thread_temperature = QtCore.QThread(parent=self)
+        self.worker_temperature = Worker(self.b, 'temperature')
         signal.signal(signal.SIGINT, self.sigint_handler)
         self.start_setup()
 
@@ -394,6 +405,8 @@ class GUI(QtWidgets.QMainWindow):
             drv_ftdi.FLAG_UI_STOP = True
             self.thread_data.quit()
             self.thread_data.wait()
+            self.thread_temperature.quit()
+            self.thread_temperature.wait()
             QtGui.QApplication.quit()
 
     def closeEvent(self, event):
@@ -402,6 +415,8 @@ class GUI(QtWidgets.QMainWindow):
         drv_ftdi.FLAG_UI_STOP = True
         self.thread_data.quit()
         self.thread_data.wait()
+        self.thread_temperature.quit()
+        self.thread_temperature.wait()
         QtGui.QApplication.quit()
 
     def mousemoved_zoom_graph(self, evt):
@@ -435,6 +450,11 @@ class GUI(QtWidgets.QMainWindow):
             local_rail['voltage'] = np.append(local_rail['voltage'], np.array(rail['voltage'], dtype=np.float16), axis=0)
             local_rail['current'] = np.append(local_rail['current'], np.array(rail['current'], dtype=np.float16), axis=0)
         self.get_power_group()
+        if self.b.temperature_sensor:
+            drv_ftdi.TEMP_DATA_LOCK.acquire()
+            self.temperature_buf = copy.deepcopy(self.b.temp_buf)
+            drv_ftdi.TEMP_DATA_LOCK.release()
+            self.update_instant_temp()
         self.traces_update()
 
     def get_power_group(self):
@@ -457,6 +477,9 @@ class GUI(QtWidgets.QMainWindow):
                 power_group = power_group + power_rail
             power_group[:, 0] = power_rail[:, 0]
             self.groups_buf[i]['power'] = power_group
+
+    def update_instant_temp(self):
+        self.temp_label.setText(' Current board temperature: ' + str(self.temperature_buf[-1][1]) + '°C ')
 
     def traces_update(self):
         """updates global / zoom plot and updates values"""
@@ -500,6 +523,17 @@ class GUI(QtWidgets.QMainWindow):
                 if group['power'].shape[0] > 2:
                     self.global_graph.plot(group['power'], pen=pg.mkPen(GROUPS_COLORS[j], width=3))
                     self.zoom_graph.plot(group['power'], pen=pg.mkPen(GROUPS_COLORS[j], width=3))
+
+        if self.b.temperature_sensor and self.list_groups_t[0].isChecked():
+            if len(self.temperature_buf) > 2:
+                self.global_graph_vb.addItem(pg.PlotCurveItem(np.array(self.temperature_buf)[:, 0],
+                                                              np.array(self.temperature_buf)[:, 1],
+                                                              pen=pg.mkPen(TEMP_COLORS[0], width=2,
+                                                                           style=QtCore.Qt.DashDotLine)))
+                self.zoom_graph_vb.addItem(pg.PlotCurveItem(np.array(self.temperature_buf)[:, 0],
+                                                            np.array(self.temperature_buf)[:, 1],
+                                                            pen=pg.mkPen(TEMP_COLORS[0], width=2,
+                                                                         style=QtCore.Qt.DashDotLine)))
 
         if self.timer.isActive():
             time_len = self.rail_buf[0]['voltage'][-1, 0]
@@ -589,6 +623,17 @@ class GUI(QtWidgets.QMainWindow):
         minx, maxx = self.zoom_region.getRegion()
         self.zoom_data_window.update_data(minx, maxx)
 
+    def temperature_changed(self):
+        """signal called when temperature checkbox state changed"""
+        current_state = self.list_groups_t[0].isChecked()
+        if current_state:
+            self.global_graph.setLabels(right='Temperature (°C)')
+            self.zoom_graph.setLabels(right='Temperature (°C)')
+        self.label_v.setEnabled(not current_state)
+        for i, rail in enumerate(self.b.rails_to_display):
+            self.list_rails_v[i].setEnabled(not current_state)
+        self.traces_update()
+
     def g_power_changed(self):
         """signal called when power checkbox state changed"""
         if not FLAGS['display_all']:
@@ -599,9 +644,19 @@ class GUI(QtWidgets.QMainWindow):
         if not FLAGS['display_all']:
             self.traces_update()
 
-    def voltage_changed(self):
+    def voltage_changed(self, index):
         """signal called when voltage checkbox state changed"""
         if not FLAGS['display_all']:
+            if self.b.temperature_sensor:
+                self.global_graph.setLabels(right='Voltage (V)')
+                self.zoom_graph.setLabels(right='Voltage (V)')
+                self.list_groups_t[0].setEnabled(False)
+            if self.list_rails_v[index].isChecked():
+                FLAGS['voltage_displayed_count'] += 1
+            else:
+                FLAGS['voltage_displayed_count'] -= 1
+            if FLAGS['voltage_displayed_count'] == 0 and self.b.temperature_sensor:
+                self.list_groups_t[0].setEnabled(True)
             self.traces_update()
 
     def current_changed(self):
@@ -637,7 +692,11 @@ class GUI(QtWidgets.QMainWindow):
         current_state = self.label_v.isChecked()
         for i, rail in enumerate(self.b.rails_to_display):
             self.list_rails_v[i].setChecked(current_state)
+        FLAGS['voltage_displayed_count'] = len(self.b.rails_to_display) if current_state else 0
         FLAGS['display_all'] = False
+        self.list_groups_t[0].setEnabled(not current_state)
+        self.global_graph.setLabels(right='Voltage (V)')
+        self.zoom_graph.setLabels(right='Voltage (V)')
         self.traces_update()
 
     def hide_all_current(self):
@@ -659,6 +718,11 @@ class GUI(QtWidgets.QMainWindow):
         GROUPS_COLORS[index] = self.list_color_groups[index].color().name()
         self.traces_update()
 
+    def change_color_t(self):
+        """updates the color of the temperature"""
+        TEMP_COLORS[0] = self.list_color_temperature[0].color().name()
+        self.traces_update()
+
     def save_pmt(self):
         """saves the capture as binary file with specified name"""
         name = QtGui.QFileDialog.getSaveFileName(caption='Save captured data as binary file',
@@ -670,6 +734,8 @@ class GUI(QtWidgets.QMainWindow):
             print('Saving to binary file ' + str(filename))
             pickle.dump(self.rail_buf, file_out, -1)
             pickle.dump(self.groups_buf, file_out, -1)
+            if self.b.temperature_sensor:
+                pickle.dump(self.temperature_buf, file_out, -1)
             file_out.close()
             print('Done.')
 
@@ -710,8 +776,23 @@ class GUI(QtWidgets.QMainWindow):
                                 power_rail.resize(power_group.shape)
                             power_group = power_group + power_rail
                         data.append(power_group[:, 1])
+                if self.b.temperature_sensor:
+                    csv_temperature_buf = self.process_temperature_csv_export()
+                    headers.append('Temperature (°C)')
+                    data.append(np.array(csv_temperature_buf)[:, 1])
                 np.savetxt(filename[0] + ".csv", np.column_stack(data), delimiter=",", header=','.join(headers), fmt='%1.4f', comments='')
                 print("Saved data in file " + filename[0] + ".csv")
+
+    def process_temperature_csv_export(self):
+        processed_temperature_buf = []
+        ind = 0
+        len_power_buf = len(self.rail_buf[-1]['voltage'])
+        len_temp_buf = len(self.temperature_buf)
+        for i in range(1, len_power_buf):
+            processed_temperature_buf.append(self.temperature_buf[ind])
+            if i == int((len_power_buf / len_temp_buf) * (ind + 1)):
+                ind += 1
+        return processed_temperature_buf
 
     def save_png(self):
         """saves the capture as png picture with specified name"""
@@ -743,6 +824,10 @@ class GUI(QtWidgets.QMainWindow):
                     rail['current'] = [[0, 0]]
                     rail['voltage'] = [[0, 0]]
                 drv_ftdi.DATA_LOCK.release()
+                if self.b.temperature_sensor:
+                    drv_ftdi.TEMP_DATA_LOCK.acquire()
+                    self.b.temp_buf = []
+                    drv_ftdi.TEMP_DATA_LOCK.release()
             self.status_bar.showMessage("Recording")
             self.worker.resume_thread()
             self.timer.start(1000)
@@ -799,6 +884,8 @@ class GUI(QtWidgets.QMainWindow):
         for rail in self.rail_buf:
             rail['current'] = [[0, 0]]
             rail['voltage'] = [[0, 0]]
+        if self.b.temperature_sensor:
+            self.temperature_buf = []
         self.zoom_graph.clear()
         self.zoom_graph_vb.clear()
         self.global_graph.clear()
@@ -866,17 +953,19 @@ class GUI(QtWidgets.QMainWindow):
                             for r in row[1:]:
                                 if r.split(' ')[0] == last_el:
                                     pass
-                                elif not 'GROUP' in r.split(' ')[0]:
+                                elif not ('GROUP' in r.split(' ')[0] or 'Temperature' in r.split(' ')[0]):
                                     self.b.rails_to_display.append({'name': r.split(' ')[0]})
                                     self.rail_buf.append(
                                         {'railnumber': r.split(' ')[0], 'current': np.array([[0, 0]], dtype=np.float16),
                                          'voltage': np.array([[0, 0]], dtype=np.float16)})
                                     last_el = r.split(' ')[0]
-                                else:
+                                elif 'GROUP' in r.split(' ')[0]:
                                     self.b.power_groups.append({'name': r.split(' ')[0]})
                                     self.groups_buf.append(
                                         {'group_name': r.split(' ')[0], 'power': np.array([[0, 0]], dtype=np.float16)})
                                     last_el = r.split(' ')[0]
+                                elif 'Temperature' in r.split(' ')[0]:
+                                    self.b.temperature_sensor = True
                             first_run = False
                         else:
                             ind = 0
@@ -895,6 +984,9 @@ class GUI(QtWidgets.QMainWindow):
                                     [[row[0], row[(ind * 3) + i]]], dtype=np.float16), axis=0)
                                 ind_g += 1
 
+                            if self.b.temperature_sensor:
+                                self.temperature_buf.append([int(float(row[0])), int(float(row[-1]))])
+
             elif self.args.load.split('.')[1] == 'pmt':
                 with open(self.args.load, mode='rb') as pkl_file:
                     self.rail_buf = pickle.load(pkl_file)
@@ -908,6 +1000,11 @@ class GUI(QtWidgets.QMainWindow):
                             self.b.power_groups.append({'name': group['group_name']})
                     except EOFError:
                         self.b.power_groups = []
+                    try:
+                        self.temperature_buf = pickle.load(pkl_file)
+                        self.b.temperature_sensor = True
+                    except EOFError:
+                        self.temperature_buf = []
             else:
                 print('Please enter valid file to load')
 
@@ -966,9 +1063,17 @@ class GUI(QtWidgets.QMainWindow):
             self.redo_but.setIcon(QtGui.QIcon('docs/images/trash.png'))
             self.redo_but.setToolTip('Re-init capture')
 
+            if self.b.temperature_sensor:
+                self.temp_label = QtGui.QPushButton(" Current board temp: 0.0°C ")
+
             self.start_but.setCheckable(True)
             self.pause_but.setCheckable(True)
             self.stop_but.setCheckable(True)
+
+            if self.b.temperature_sensor:
+                self.spacer1.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+                self.tool_bar.addWidget(self.spacer1)
+                self.tool_bar.addWidget(self.temp_label)
 
             self.spacer.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
             self.tool_bar.addWidget(self.spacer)
@@ -992,6 +1097,10 @@ class GUI(QtWidgets.QMainWindow):
         self.label_c = QtGui.QCheckBox("I")
         self.label_res = QtGui.QLabel("Res")
         self.label_p.setChecked(True)
+
+        if self.b.temperature_sensor:
+            self.label_v.setEnabled(False)
+
         self.label_p.stateChanged.connect(self.hide_all_power)
         self.label_v.stateChanged.connect(self.hide_all_voltage)
         self.label_c.stateChanged.connect(self.hide_all_current)
@@ -1021,6 +1130,8 @@ class GUI(QtWidgets.QMainWindow):
             self.list_rails_p.append(QtGui.QCheckBox())
             self.list_rails_p[i].setChecked(True)
             self.list_rails_v.append(QtGui.QCheckBox())
+            if self.b.temperature_sensor:
+                self.list_rails_v[i].setEnabled(False)
             self.list_rails_c.append(QtGui.QCheckBox())
             self.button_lay.addWidget(self.list_rails_label[i], i + 1, 0)
             self.button_lay.addWidget(self.list_color_rails[i], i + 1, 1)
@@ -1029,7 +1140,7 @@ class GUI(QtWidgets.QMainWindow):
             self.button_lay.addWidget(self.list_rails_c[i], i + 1, 4)
             self.list_color_rails[i].sigColorChanged.connect(lambda init, i=i: self.change_color(i))
             self.list_rails_p[i].stateChanged.connect(self.power_changed)
-            self.list_rails_v[i].stateChanged.connect(self.voltage_changed)
+            self.list_rails_v[i].stateChanged.connect(lambda init, i=i: self.voltage_changed(i))
             self.list_rails_c[i].stateChanged.connect(self.current_changed)
 
             self.list_right_lay_n.append(QtGui.QLabel(rail['name']))
@@ -1070,8 +1181,28 @@ class GUI(QtWidgets.QMainWindow):
                 self.right_lay_group.addWidget(self.list_right_lay_group_n[i], i + 1, 0)
                 self.right_lay_group.addWidget(self.list_right_lay_group_p[i], i + 1, 1)
 
-            self.group_lay.setAlignment(QtCore.Qt.AlignTop)
+                self.group_lay.setAlignment(QtCore.Qt.AlignTop)
             self.left_lay.addLayout(self.group_lay)
+
+        if self.b.temperature_sensor:
+            self.temperature_control = QtGui.QLabel("Board Temperature Sensor")
+            self.temperature_control.setFont(QtGui.QFont("Arial", 8, QtGui.QFont.Black))
+            self.left_lay.addWidget(self.temperature_control)
+
+            self.list_temperature_label.append(QtGui.QPushButton('TEMPERATURE'))
+            self.list_color_temperature.append(pg.ColorButton(color=TEMP_COLORS[0]))
+            self.list_color_temperature[0].setMinimumHeight(30)
+            self.list_color_temperature[0].setMinimumWidth(30)
+            self.list_groups_t.append(QtGui.QCheckBox())
+            self.list_groups_t[0].setChecked(True)
+            self.list_groups_t[0].stateChanged.connect(self.temperature_changed)
+            self.temperature_lay.addWidget(self.list_temperature_label[0], 1, 0)
+            self.temperature_lay.addWidget(self.list_color_temperature[0], 1, 1)
+            self.temperature_lay.addWidget(self.list_groups_t[0], 1, 2)
+            self.list_color_temperature[0].sigColorChanged.connect(self.change_color_t)
+            self.temperature_lay.setAlignment(QtCore.Qt.AlignTop)
+            self.left_lay.addLayout(self.temperature_lay)
+
         self.global_lay.addLayout(self.left_lay)
 
         self.global_graph.setDownsampling(ds=True, auto=True, mode='peak')
@@ -1081,7 +1212,10 @@ class GUI(QtWidgets.QMainWindow):
         self.global_graph_pi.scene().addItem(self.global_graph_vb)
         self.global_graph_pi.getAxis('right').linkToView(self.global_graph_vb)
         self.global_graph_vb.setXLink(self.global_graph_pi)
-        self.global_graph.setLabels(left='Power (mW) / Current (mA) ', bottom='Time (sec)', right='Voltage (V)')
+        if self.b.temperature_sensor:
+            self.global_graph.setLabels(left='Power (mW) / Current (mA) ', bottom='Time (sec)', right='Temperature (°C)')
+        else:
+            self.global_graph.setLabels(left='Power (mW) / Current (mA) ', bottom='Time (sec)', right='Voltage (V)')
         self.global_graph.addLine(y=0)
         self.global_graph.showGrid(x=True, y=True, alpha=0.30)
         self.plot_lay.addWidget(self.global_graph, 0, 0)
@@ -1093,7 +1227,10 @@ class GUI(QtWidgets.QMainWindow):
         self.zoom_graph_pi.scene().addItem(self.zoom_graph_vb)
         self.zoom_graph_pi.getAxis('right').linkToView(self.zoom_graph_vb)
         self.zoom_graph_vb.setXLink(self.zoom_graph_pi)
-        self.zoom_graph.setLabels(left='Power (mW) / Current (mA)', bottom='Time (sec)', right='Voltage (V)')
+        if self.b.temperature_sensor:
+            self.zoom_graph.setLabels(left='Power (mW) / Current (mA)', bottom='Time (sec)', right='Temperature (°C)')
+        else:
+            self.zoom_graph.setLabels(left='Power (mW) / Current (mA)', bottom='Time (sec)', right='Voltage (V)')
         self.zoom_graph.enableAutoRange('y')
         self.zoom_graph.setAutoVisible(y=True)
         self.zoom_graph.addLine(y=0)
@@ -1134,11 +1271,18 @@ class GUI(QtWidgets.QMainWindow):
         self.zoom_data_window.setWindowTitle('Zoom Data Window')
         self.mouse_pointer_window.setWindowTitle('Mouse Pointer Data Window')
 
+        self.setFixedSize(self.global_lay.sizeHint())
+
         if not self.args.load:
             self.worker.moveToThread(self.thread_data)
             self.thread_data.started.connect(self.worker.do_work)
             self.thread_data.finished.connect(self.thread_data.deleteLater)
             self.thread_data.start()
+            if self.b.temperature_sensor:
+                self.worker_temperature.moveToThread(self.thread_temperature)
+                self.thread_temperature.started.connect(self.worker_temperature.do_work)
+                self.thread_temperature.finished.connect(self.thread_temperature.deleteLater)
+                self.thread_temperature.start()
             self.timer.timeout.connect(self.global_update)
             self.timer.start(1000)
             self.start_but.setChecked(True)

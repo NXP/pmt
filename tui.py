@@ -49,6 +49,7 @@ def run_ui(board, args):
     """runs TUI and collects data in a thread"""
     rail_data = []
     rail_buf = []
+    temp_data = []
     v_now, c_now, p_now = (0 for i in range(3))
     v_min = []
     c_min = []
@@ -66,8 +67,12 @@ def run_ui(board, args):
     thread_process = threading.Thread(target=board.get_data)
     thread_process.start()
     time.sleep(1)
-    curr_time = 0
     time_start = time.time()
+    if board.temperature_sensor:
+        time.sleep(0.2)
+        thread_temperature = threading.Thread(target=board.process_temperature)
+        thread_temperature.start()
+    curr_time = 0
     curses.noecho()
     curses.cbreak()
     stdscr.keypad(1)
@@ -157,7 +162,10 @@ def run_ui(board, args):
                                                   axis=0)
                 local_rail['current'] = np.append(local_rail['current'], np.array(rail['current'], dtype=np.float16),
                                                   axis=0)
-
+            if board.temperature_sensor:
+                drv_ftdi.TEMP_DATA_LOCK.acquire()
+                temp_data = copy.deepcopy(board.temp_buf[-1][1]) if len(board.temp_buf) != 0 else 0
+                drv_ftdi.TEMP_DATA_LOCK.release()
             char = stdscr.getch()
             if char == ord('0'):
                 drv_ftdi.FLAG_UI_STOP = True
@@ -267,9 +275,14 @@ def run_ui(board, args):
                                   str(drv_ftdi.CURR_RSENSE.get(rail2['name'])), curses.color_pair(col))
                     stdscr.clrtoeol()
                     curr_time = time.time() - time_start
-                    stdscr.addstr(7 + probe_number, 1, 'Duration : ' + str("%.2f" % curr_time) + ' sec')
+                    stdscr.addstr(7 + probe_number, 1, 'Duration : ' + str("%.2f" % curr_time) + ' sec' +
+                                  ' ; Frequency : ' + str("%.1f" % (rail['voltage'].shape[0] / rail['voltage'][-1, 0]))
+                                  + "Hz")
+                    if board.temperature_sensor:
+                        stdscr.addstr(7 + probe_number, 41, ' ; Board Temperature: ' + str("%.2f" % temp_data) + ' C')
                     stdscr.clrtoeol()
-                    stdscr.addstr(8 + probe_number, 1, 'Frequency : ' + str("%.1f" % (rail['voltage'].shape[0] / rail['voltage'][-1, 0])) + ' Hz ; avg_values: ' + str(board.params['hw_filter']) + ' ; bipolar mode: ' + str(board.params['bipolar']))
+                    stdscr.addstr(8 + probe_number, 1, 'avg_values: ' + str(board.params['hw_filter']) +
+                                  ' ; bipolar mode: ' + str(board.params['bipolar']))
                     stdscr.clrtoeol()
                     rail_data.clear()
                     stdscr.refresh()

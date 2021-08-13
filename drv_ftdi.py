@@ -45,6 +45,7 @@ from main import LOG_LEVEL
 logging.basicConfig(level=LOG_LEVEL)
 DATA_LOCK = threading.Lock()
 FTDI_LOCK = threading.Lock()
+TEMP_DATA_LOCK = threading.Lock()
 CURR_RSENSE = {}
 FLAG_UI_STOP = False
 FLAG_PAUSE_CAPTURE = False
@@ -79,9 +80,11 @@ class Board:
         self.board_mapping_gpio = None
         self.boot_modes = None
         self.ftdic = None
+        self.temperature_sensor = None
         self.name = None
         self.id = None
         self.data_buf = []
+        self.temp_buf = []
         self.dev_list_num_i2c = None
         self.dev_list_num_gpio = None
         self.params = {'hw_filter': False, 'bipolar': False}
@@ -180,6 +183,8 @@ class Board:
             self.board_mapping_gpio_i2c = self.board_c.mapping_gpio_i2c
             self.board_mapping_gpio = self.board_c.mapping_gpio
             self.boot_modes = self.board_c.boot_modes
+            self.temperature_sensor = self.board_c.temperature_sensor if "temperature_sensor" in dir(self.board_c) \
+                else None
             self.board_mapping_power = sorted(self.board_mapping_power,
                                               key=lambda i: (i['pac'][2], i['pac'][0]))
             print('Done.')
@@ -651,3 +656,30 @@ class Board:
                                 [t_stop - T_START, current[i] / CURR_RSENSE[self.data_buf[index + i]['railnumber']]])
                             self.data_buf[index + i]['voltage'].append([t_stop - T_START, voltage[i]])
                         DATA_LOCK.release()
+
+    def process_temperature(self):
+        global T_START
+        while not FLAG_UI_STOP:
+            while FLAG_PAUSE_CAPTURE:
+                time.sleep(0.2)
+            FTDI_LOCK.acquire()
+            out = self.get_temperature(self.temperature_sensor)
+            FTDI_LOCK.release()
+            TEMP_DATA_LOCK.acquire()
+            out = ((out[1] >> 5) + ((out[0] & 0x01) << 3)) + ((out[0] >> 1) << 4)
+            positive_temp = True if out >> 10 == 0 else False
+            temp_value = out * 0.125 if positive_temp else out * -0.125
+            t_stop = time.time()
+            self.temp_buf.append([t_stop - T_START, temp_value])
+            TEMP_DATA_LOCK.release()
+            time.sleep(1)
+
+    def get_temperature(self, pins):
+        out = []
+        add_read = (pins['sensor'][0] << 1) + 1
+        common_func.ftdi_i2c_init(self.ftdic, pins)
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        common_func.ftdi_i2c_write(self.ftdic, pins, add_read)
+        out = common_func.ftdi_i2c_read_buffer(self.ftdic, pins, 2)
+        common_func.ftdi_i2c_stop(self.ftdic, pins)
+        return out
