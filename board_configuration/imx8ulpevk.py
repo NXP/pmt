@@ -30,26 +30,26 @@
 
 """describes the configuration of the board iMX8ULP EVK"""
 mapping_power = [
-    {'name': 'BUCK4_CPU_1V1', 'ftdi': [1, 0xF0, 0x10], 'pac': [1, 0x10, 1, 2], 'rsense': [400, 400, 1],
+    {'name': 'BUCK4_CPU_1V1', 'ftdi': [1, 0xF0, 0xF0], 'pac': [1, 0x10, 1, 2], 'rsense': [400, 400, 1],
      'rsense_ctl': 'FT_IO_01'},
-    {'name': 'BUCK1_CPU_1V8', 'ftdi': [1, 0xF0, 0x10], 'pac': [3, 0x10, 1, 4], 'rsense': [100, 10000, 1],
+    {'name': 'BUCK1_CPU_1V8', 'ftdi': [1, 0xF0, 0xF0], 'pac': [3, 0x10, 1, 4], 'rsense': [100, 10000, 1],
      'rsense_ctl': 'FT_IO_00'},
-    {'name': 'BUCK2_CPU_1V0', 'ftdi': [1, 0xF0, 0x10], 'pac': [1, 0x11, 2, 2], 'rsense': [50, 10000, 1],
+    {'name': 'BUCK2_CPU_1V0', 'ftdi': [1, 0xF0, 0xF0], 'pac': [1, 0x11, 2, 2], 'rsense': [50, 10000, 1],
      'rsense_ctl': 'FT_IO_02'},
-    {'name': 'BUCK3_CPU_1V0', 'ftdi': [1, 0xF0, 0x10], 'pac': [3, 0x11, 2, 4], 'rsense': [20, 10000, 1],
+    {'name': 'BUCK3_CPU_1V0', 'ftdi': [1, 0xF0, 0xF0], 'pac': [3, 0x11, 2, 4], 'rsense': [20, 10000, 1],
      'rsense_ctl': 'FT_IO_03'},
-    {'name': 'LDO5_CPU_3V0', 'ftdi': [1, 0xF0, 0x10], 'pac': [1, 0x12, 3], 'rsense': [250000, 250000]},
-    {'name': 'LDO1_CPU_1V1', 'ftdi': [1, 0xF0, 0x10], 'pac': [2, 0x12, 3], 'rsense': [100, 100]},
-    {'name': 'BUCK1_LSW1_CPU_1V8', 'ftdi': [1, 0xF0, 0x10], 'pac': [3, 0x12, 3], 'rsense': [100, 100]},
-    {'name': 'BUCK1_LSW4_CPU_1V8', 'ftdi': [1, 0xF0, 0x10], 'pac': [4, 0x12, 3], 'rsense': [100, 100]},
-    {'name': 'BUCK1_LSW2_CPU_1V8', 'ftdi': [1, 0xF0, 0x10], 'pac': [1, 0x13, 4], 'rsense': [100, 100]},
-    {'name': 'BUCK1_LSW3_CPU_1V8', 'ftdi': [1, 0xF0, 0x10], 'pac': [2, 0x13, 4], 'rsense': [100, 100]},
-    {'name': 'LDO4_CPU_1V8', 'ftdi': [1, 0xF0, 0x10], 'pac': [3, 0x13, 4], 'rsense': [100, 100]},
-    {'name': 'LDO2_CPU_3V3', 'ftdi': [1, 0xF0, 0x10], 'pac': [4, 0x13, 4], 'rsense': [100, 100]},
-    {'name': 'VSYS_5V0_4V2', 'ftdi': [1, 0xF0, 0x10], 'pac': [1, 0x14, 5, 2], 'rsense': [20, 10000, 1],
+    {'name': 'LDO5_CPU_3V0', 'ftdi': [1, 0xF0, 0xF0], 'pac': [1, 0x12, 3], 'rsense': [250000, 250000]},
+    {'name': 'LDO1_CPU_1V1', 'ftdi': [1, 0xF0, 0xF0], 'pac': [2, 0x12, 3], 'rsense': [100, 100]},
+    {'name': 'BUCK1_LSW1_CPU_1V8', 'ftdi': [1, 0xF0, 0xF0], 'pac': [3, 0x12, 3], 'rsense': [100, 100]},
+    {'name': 'BUCK1_LSW4_CPU_1V8', 'ftdi': [1, 0xF0, 0xF0], 'pac': [4, 0x12, 3], 'rsense': [100, 100]},
+    {'name': 'BUCK1_LSW2_CPU_1V8', 'ftdi': [1, 0xF0, 0xF0], 'pac': [1, 0x13, 4], 'rsense': [100, 100]},
+    {'name': 'BUCK1_LSW3_CPU_1V8', 'ftdi': [1, 0xF0, 0xF0], 'pac': [2, 0x13, 4], 'rsense': [100, 100]},
+    {'name': 'LDO4_CPU_1V8', 'ftdi': [1, 0xF0, 0xF0], 'pac': [3, 0x13, 4], 'rsense': [100, 100]},
+    {'name': 'LDO2_CPU_3V3', 'ftdi': [1, 0xF0, 0xF0], 'pac': [4, 0x13, 4], 'rsense': [100, 100]},
+    {'name': 'VSYS_5V0_4V2', 'ftdi': [1, 0xF0, 0xF0], 'pac': [1, 0x14, 5, 2], 'rsense': [20, 10000, 1],
      'rsense_ctl': 'FT_IO_04'},
-    {'name': 'LDO1_CPU_1V1_0V6', 'ftdi': [1, 0xF0, 0x10], 'pac': [3, 0x14, 5], 'rsense': [50, 50]},
-    {'name': 'BUCK4_DRAM_1V1', 'ftdi': [1, 0xF0, 0x10], 'pac': [4, 0x14, 5], 'rsense': [50, 50]}
+    {'name': 'LDO1_CPU_1V1_0V6', 'ftdi': [1, 0xF0, 0xF0], 'pac': [3, 0x14, 5], 'rsense': [50, 50]},
+    {'name': 'BUCK4_DRAM_1V1', 'ftdi': [1, 0xF0, 0xF0], 'pac': [4, 0x14, 5], 'rsense': [50, 50]}
 ]
 
 power_groups = [
@@ -61,20 +61,20 @@ power_groups = [
 ]
 
 mapping_gpio_i2c = [
-    {'name': 'FT_BOOT_MODE', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x20, 0, 0xFF], 'default': 0x40},
-    {'name': 'FT_REMOTE_EN', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x20, 1, 0x01], 'default': 0x51},
-    {'name': 'FT_SYS_RST', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x20, 1, 0x02], 'default': 0x20},
-    {'name': 'FT_ONOFF', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x20, 1, 0x04], 'default': 0x30},
-    {'name': 'RESET0_B_BUFFER', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x20, 1, 0x08], 'default': 0},
-    {'name': 'RESET1_B_BUFFER', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x20, 1, 0x10], 'default': 0},
-    {'name': 'CPU_POWER_MODE0', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x20, 1, 0x20], 'default': 0},
-    {'name': 'CPU_POWER_MODE1', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x20, 1, 0x40], 'default': 0},
-    {'name': 'CPU_POWER_MODE2', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x20, 1, 0x80], 'default': 0},
-    {'name': 'FT_IO_00', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x21, 0, 0x01], 'default': 0},
-    {'name': 'FT_IO_01', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x21, 0, 0x02], 'default': 0},
-    {'name': 'FT_IO_02', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x21, 0, 0x04], 'default': 0},
-    {'name': 'FT_IO_03', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x21, 0, 0x08], 'default': 0},
-    {'name': 'FT_IO_04', 'ftdi': [1, 0xF0, 0x10], 'pca6416': [0x21, 0, 0x10], 'default': 0}
+    {'name': 'FT_BOOT_MODE', 'ftdi': [1, 0xF0, 0xF0], 'pca6416': [0x20, 0, 0xFF], 'default': 0x40},
+    {'name': 'FT_REMOTE_EN', 'ftdi': [1, 0xF0, 0xF0], 'pca6416': [0x20, 1, 0x01], 'default': 0x51},
+    {'name': 'FT_SYS_RST', 'ftdi': [1, 0xF0, 0xF0], 'pca6416': [0x20, 1, 0x02], 'default': 0x20},
+    {'name': 'FT_ONOFF', 'ftdi': [1, 0xF0, 0xF0], 'pca6416': [0x20, 1, 0x04], 'default': 0x30},
+    {'name': 'RESET0_B_BUFFER', 'ftdi': [1, 0xF0, 0xF0], 'pca6416': [0x20, 1, 0x08], 'default': 0},
+    {'name': 'RESET1_B_BUFFER', 'ftdi': [1, 0xF0, 0xF0], 'pca6416': [0x20, 1, 0x10], 'default': 0},
+    {'name': 'CPU_POWER_MODE0', 'ftdi': [1, 0xF0, 0xF0], 'pca6416': [0x20, 1, 0x20], 'default': 0},
+    {'name': 'CPU_POWER_MODE1', 'ftdi': [1, 0xF0, 0xF0], 'pca6416': [0x20, 1, 0x40], 'default': 0},
+    {'name': 'CPU_POWER_MODE2', 'ftdi': [1, 0xF0, 0xF0], 'pca6416': [0x20, 1, 0x80], 'default': 0},
+    {'name': 'FT_IO_00', 'ftdi': [1, 0xF0, 0xF0], 'pca6416': [0x21, 0, 0x01], 'default': 0},
+    {'name': 'FT_IO_01', 'ftdi': [1, 0xF0, 0xF0], 'pca6416': [0x21, 0, 0x02], 'default': 0},
+    {'name': 'FT_IO_02', 'ftdi': [1, 0xF0, 0xF0], 'pca6416': [0x21, 0, 0x04], 'default': 0},
+    {'name': 'FT_IO_03', 'ftdi': [1, 0xF0, 0xF0], 'pca6416': [0x21, 0, 0x08], 'default': 0},
+    {'name': 'FT_IO_04', 'ftdi': [1, 0xF0, 0xF0], 'pca6416': [0x21, 0, 0x10], 'default': 0}
 ]
 
 mapping_gpio = [{'name': 'FTB_INT_B', 'ftdi': [1, 0x08], 'default': 0x00},
