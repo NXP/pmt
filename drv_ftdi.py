@@ -387,7 +387,7 @@ class Board:
             for gpio in self.board_mapping_gpio:  # if channel 0, parse gpio default value of channel 0
                 if gpio['ftdi'][0] == channel:
                     out_pins += gpio['ftdi'][1]
-                    common_func.ftdic_setbitmode(0xFF, 0x1)
+                    common_func.ftdic_setbitmode(self.ftdic, 0xFF, 0x1)
         if mode == 1:  # if I2C mode
             common_func.ftdic_setbitmode(self.ftdic, 0x0, 0x00)  # reset the controller
             common_func.ftdic_setbitmode(self.ftdic, 0x0, 0x02)  # set as MPSSE
@@ -424,7 +424,7 @@ class Board:
             if out < 0:
                 print('Rebooting ...')
                 break
-            if gpio['name'].split('_')[1] == 'BOOT':
+            if gpio.get("BOOT_MODE"):
                 if mode:
                     val = self.boot_modes.get(mode)
                     self.set_gpio(gpio, val)
@@ -443,20 +443,28 @@ class Board:
                 self.init_res(rail)
                 self.deinit_system()
         gpio = next((item for item in self.board_mapping_gpio if
-                     (item['name'] == 'FTA_RESET' or item['name'] == 'FT_SYS_nRST')), None)
-        self.set_gpio(gpio, 0x00)
+                     (item['name'] == 'RESET')), None)
+        if gpio is None:
+            gpio = next((item for item in self.board_mapping_gpio_i2c if
+                         (item['name'] == 'RESET')), None)
+        mask = gpio['default'] & 0xF
+        self.set_gpio(gpio, 0x00 if mask else 0xFF)
         time.sleep(0.5)
         if mode:
-            self.set_gpio(gpio, 0xFF)
+            self.set_gpio(gpio, 0xFF if mask else 0x00)
         else:
             gpio = next((item for item in self.board_mapping_gpio_i2c if item['name'] == 'BOOT_SRC_SEL'), None)
             if gpio:
                 self.set_gpio(gpio, 0xFF)
-                gpio = next((item for item in self.board_mapping_gpio if item['name'] == 'FTA_RESET'), None)
-                self.set_gpio(gpio, 0xFF)
+                gpio = next((item for item in self.board_mapping_gpio if item['name'] == 'RESET'), None)
+                mask = gpio['default'] & 0xF
+                self.set_gpio(gpio, 0xFF if mask else 0x00)
             else:
-                gpio = next((item for item in self.board_mapping_gpio_i2c if item['name'] == 'FT_REMOTE_SEL'), None)
-                self.set_gpio(gpio, 0x00)
+                gpio = next((item for item in self.board_mapping_gpio_i2c if item['name'] == 'REMOTE_EN'), None)
+                if gpio is None:
+                    gpio = next((item for item in self.board_mapping_gpio if item['name'] == 'REMOTE_EN'), None)
+                mask = gpio['default'] & 0xF
+                self.set_gpio(gpio, 0x00 if mask else 0xFF)
         print('Done.')
 
     def set_gpio(self, gpio_name, gpio_value):

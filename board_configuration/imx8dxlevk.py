@@ -79,7 +79,7 @@ power_groups = [
 ]
 
 mapping_gpio_i2c = [
-    {'name': 'HOST_BOOT_MODE', 'ftdi': [1, 0x60, 0x40], 'pca9548': [0, 0x70], 'pca6416': [0x20, 0, 0x07],
+    {'name': 'BOOT_MODE', 'ftdi': [1, 0x60, 0x40], 'pca9548': [0, 0x70], 'pca6416': [0x20, 0, 0x07],
      'default': 0x80},
     {'name': 'HOST_SD_PWR', 'ftdi': [1, 0x60, 0x40], 'pca9548': [0, 0x70], 'pca6416': [0x20, 0, 0x08],
      'default': 0x51},
@@ -105,10 +105,10 @@ mapping_gpio_i2c = [
      'default': 0x90}
 ]
 
-mapping_gpio = [{'name': 'FTA_RESET', 'ftdi': [0, 0x20], 'default': 0x11},
+mapping_gpio = [{'name': 'RESET', 'ftdi': [0, 0x20], 'default': 0x11},
                 {'name': 'JTAG_SEL', 'ftdi': [0, 0x40], 'default': 0x01},
                 {'name': 'FTA_PWR_ON_OFF', 'ftdi': [0, 0x80], 'default': 0x21},
-                {'name': 'FTB_SELECT', 'ftdi': [1, 0x20], 'default': 0x40},
+                {'name': 'REMOTE_EN', 'ftdi': [1, 0x20], 'default': 0x40},
                 {'name': 'FTB_RESET', 'ftdi': [1, 0x40], 'default': 0x31}
                 ]
 

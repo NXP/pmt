@@ -89,12 +89,12 @@ power_groups = [
 
 ]
 
-mapping_gpio_i2c = [{'name': 'FT_BOOT_MODE', 'ftdi': [1, 0xF0, 0x00], 'pca6416': [0x22, 0, 0x0F], 'default': 0x30},
+mapping_gpio_i2c = [{'name': 'BOOT_MODE', 'ftdi': [1, 0xF0, 0x00], 'pca6416': [0x22, 0, 0x0F], 'default': 0x30},
                     {'name': 'FT_IO_01', 'ftdi': [1, 0xF0, 0x00], 'pca6416': [0x22, 0, 0x10], 'default': 0},
                     {'name': 'FT_IO_02', 'ftdi': [1, 0xF0, 0x00], 'pca6416': [0x22, 0, 0x20], 'default': 0},
                     {'name': 'FT_IO_03', 'ftdi': [1, 0xF0, 0x00], 'pca6416': [0x22, 0, 0x40], 'default': 0},
                     {'name': 'FT_IO_04', 'ftdi': [1, 0xF0, 0x00], 'pca6416': [0x22, 0, 0x80], 'default': 0},
-                    {'name': 'FT_REMOTE_SEL', 'ftdi': [1, 0xF0, 0x00], 'pca6416': [0x22, 1, 0x01], 'default': 0x41},
+                    {'name': 'REMOTE_EN', 'ftdi': [1, 0xF0, 0x00], 'pca6416': [0x22, 1, 0x01], 'default': 0x41},
                     {'name': 'FT_IO_05', 'ftdi': [1, 0xF0, 0x00], 'pca6416': [0x22, 1, 0x02], 'default': 0},
                     {'name': 'FT_IO_06', 'ftdi': [1, 0xF0, 0x00], 'pca6416': [0x22, 1, 0x04], 'default': 0},
                     {'name': 'FT_IO_07', 'ftdi': [1, 0xF0, 0x00], 'pca6416': [0x22, 1, 0x08], 'default': 0},
@@ -107,7 +107,7 @@ mapping_gpio_i2c = [{'name': 'FT_BOOT_MODE', 'ftdi': [1, 0xF0, 0x00], 'pca6416':
                     ]
 
 mapping_gpio = [{'name': 'FT_RESET_B', 'ftdi': [0, 0x10], 'default': 0},
-                {'name': 'FT_SYS_nRST', 'ftdi': [0, 0x20], 'default': 0x21},
+                {'name': 'RESET', 'ftdi': [0, 0x20], 'default': 0x21},
                 {'name': 'FT_IO_nRST', 'ftdi': [0, 0x40], 'default': 0x11},
                 {'name': 'FT_ONOFF_B', 'ftdi': [0, 0x80], 'default': 0},
                 {'name': 'FT_GPIO1', 'ftdi': [1, 0x10], 'default': 0},
