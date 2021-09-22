@@ -44,7 +44,9 @@ INFOS = [
         '0x6': 'NXP i.MX8MP DDR4 Board',
         '0x7': 'NXP i.MX8ULP EVK Board',
         '0x8': 'NXP VAL_BOARD_1 Board',
-        '0x9': 'NXP VAL_BOARD_2 Board'}
+        '0x9': 'NXP VAL_BOARD_2 Board',
+        '0xa': 'NXP i.MX8ULP EVK9 Board'}
+
     },
     {'name': 'BOARD_REV', 'datas': {
         '0x11': 'A0',
