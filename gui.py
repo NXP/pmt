@@ -96,6 +96,57 @@ class SplashScreen():
         app.exec_()
 
 
+class ProcessData(QtCore.QThread):
+    sig_update_gui = QtCore.pyqtSignal()
+    sig_update_instant_temp = QtCore.pyqtSignal()
+
+    def __init__(self, parent):
+        QtCore.QObject.__init__(self)
+        self.parent = parent
+
+    def run(self):
+        remote_buf = []
+        drv_ftdi.DATA_LOCK.acquire()
+        for remote_rail in self.parent.b.data_buf:
+            remote_buf.append(copy.deepcopy(remote_rail))
+            remote_rail['current'] = [[0, 0]]
+            remote_rail['voltage'] = [[0, 0]]
+        drv_ftdi.DATA_LOCK.release()
+        for rail in remote_buf:
+            local_rail = next((item for item in self.parent.rail_buf if item['railnumber'] == rail['railnumber']), None)
+            rail['voltage'].pop(0)
+            rail['current'].pop(0)
+            local_rail['voltage'] = np.append(local_rail['voltage'], np.array(rail['voltage'], dtype=np.float16), axis=0)
+            local_rail['current'] = np.append(local_rail['current'], np.array(rail['current'], dtype=np.float16), axis=0)
+
+        self.parent.groups_buf = []
+        for i, group in enumerate(self.parent.b.power_groups):
+            self.parent.groups_buf.append({'group_name': group['name'], 'power': np.array([[0, 0]], dtype=np.float16)})
+            power_group = np.array([[0, 0]], dtype=np.float16)
+            for rail_group in group['rails']:
+                rail = next((item for item in self.parent.rail_buf if item['railnumber'] == rail_group), None)
+                if rail is None:
+                    return
+                power_rail = np.empty_like(rail['voltage'][1:])
+                power_rail[:, 0] = rail['voltage'][1:, 0]
+                power_rail[:, 1] = (rail['voltage'][1:, 1] * rail['current'][1:, 1])
+                if power_group.shape[0] > power_rail.shape[0]:
+                    power_group.resize(power_rail.shape)
+                elif power_rail.shape[0] - power_group.shape[0] <= 2:
+                    power_rail.resize(power_group.shape)
+                power_group = power_group + power_rail
+            power_group[:, 0] = power_rail[:, 0]
+            self.parent.groups_buf[i]['power'] = power_group
+
+        if self.parent.b.temperature_sensor:
+            drv_ftdi.TEMP_DATA_LOCK.acquire()
+            self.parent.temperature_buf = copy.deepcopy(self.parent.b.temp_buf)
+            drv_ftdi.TEMP_DATA_LOCK.release()
+            self.sig_update_instant_temp.emit()
+
+        self.sig_update_gui.emit()
+
+
 class Worker(QtCore.QObject):
     """creates worker class for thread"""
 
@@ -392,6 +443,7 @@ class GUI(QtWidgets.QMainWindow):
         self.worker = Worker(self.b, 'power')
         self.thread_temperature = QtCore.QThread(parent=self)
         self.worker_temperature = Worker(self.b, 'temperature')
+        self.thread_process_data = ProcessData(self)
         signal.signal(signal.SIGINT, self.sigint_handler)
         self.start_setup()
 
@@ -431,51 +483,6 @@ class GUI(QtWidgets.QMainWindow):
         mousepoint = self.global_graph.getPlotItem().getViewBox().mapSceneToView(pos)
         time_coor = mousepoint.x()
         self.mouse_pointer_window.update_data(time_coor)
-
-    def global_update(self):
-        """stores in local buffer the shared variable with measured values"""
-        remote_buf = []
-        drv_ftdi.DATA_LOCK.acquire()
-        for remote_rail in self.b.data_buf:
-            remote_buf.append(copy.deepcopy(remote_rail))
-            remote_rail['current'] = [[0, 0]]
-            remote_rail['voltage'] = [[0, 0]]
-        drv_ftdi.DATA_LOCK.release()
-
-        for rail in remote_buf:
-            local_rail = next((item for item in self.rail_buf if item['railnumber'] == rail['railnumber']), None)
-            rail['voltage'].pop(0)
-            rail['current'].pop(0)
-            local_rail['voltage'] = np.append(local_rail['voltage'], np.array(rail['voltage'], dtype=np.float16), axis=0)
-            local_rail['current'] = np.append(local_rail['current'], np.array(rail['current'], dtype=np.float16), axis=0)
-        self.get_power_group()
-        if self.b.temperature_sensor:
-            drv_ftdi.TEMP_DATA_LOCK.acquire()
-            self.temperature_buf = copy.deepcopy(self.b.temp_buf)
-            drv_ftdi.TEMP_DATA_LOCK.release()
-            self.update_instant_temp()
-        self.traces_update()
-
-    def get_power_group(self):
-        """retrieves power groups data"""
-        self.groups_buf = []
-        for i, group in enumerate(self.b.power_groups):
-            self.groups_buf.append({'group_name': group['name'], 'power': np.array([[0, 0]], dtype=np.float16)})
-            power_group = np.array([[0, 0]], dtype=np.float16)
-            for rail_group in group['rails']:
-                rail = next((item for item in self.rail_buf if item['railnumber'] == rail_group), None)
-                if rail is None:
-                    return
-                power_rail = np.empty_like(rail['voltage'][1:])
-                power_rail[:, 0] = rail['voltage'][1:, 0]
-                power_rail[:, 1] = (rail['voltage'][1:, 1] * rail['current'][1:, 1])
-                if power_group.shape[0] > power_rail.shape[0]:
-                    power_group.resize(power_rail.shape)
-                elif power_rail.shape[0] - power_group.shape[0] <= 2:
-                    power_rail.resize(power_group.shape)
-                power_group = power_group + power_rail
-            power_group[:, 0] = power_rail[:, 0]
-            self.groups_buf[i]['power'] = power_group
 
     def update_instant_temp(self):
         self.temp_label.setText(' Current board temperature: ' + str(self.temperature_buf[-1][1]) + '°C ')
@@ -1278,7 +1285,11 @@ class GUI(QtWidgets.QMainWindow):
                 self.thread_temperature.started.connect(self.worker_temperature.do_work)
                 self.thread_temperature.finished.connect(self.thread_temperature.deleteLater)
                 self.thread_temperature.start()
-            self.timer.timeout.connect(self.global_update)
+
+            self.thread_process_data.sig_update_gui.connect(self.traces_update)
+            self.thread_process_data.sig_update_instant_temp.connect(self.update_instant_temp)
+            self.thread_process_data.finished.connect(self.thread_process_data.quit)
+            self.timer.timeout.connect(self.thread_process_data.start)
             self.timer.start(1000)
             self.start_but.setChecked(True)
         else:
