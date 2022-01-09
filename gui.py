@@ -319,6 +319,7 @@ class MPDataWin(QtGui.QDialog):
         self.parent.proxy1.disconnect()
         self.parent.proxy2.disconnect()
 
+
 class GlobalDataWin(QtGui.QDialog):
     """extern window displaying data collected since app starts"""
 
@@ -391,6 +392,14 @@ class GUI(QtWidgets.QMainWindow):
         self.rail_buf = []
         self.groups_buf = []
         self.temperature_buf = []
+        self.list_power_plot_main = []
+        self.list_power_plot_zoom = []
+        self.list_current_plot_main = []
+        self.list_current_plot_zoom = []
+        self.list_voltage_plot_main = []
+        self.list_voltage_plot_zoom = []
+        self.list_group_plot_main = []
+        self.list_group_plot_zoom = []
         self.list_rails_p = []
         self.list_groups_p = []
         self.list_rails_v = []
@@ -487,12 +496,38 @@ class GUI(QtWidgets.QMainWindow):
     def update_instant_temp(self):
         self.temp_label.setText(' Current board temperature: ' + str(self.temperature_buf[-1][1]) + '°C ')
 
+    def single_trace_update(self, index, type, trace_main, trace_zoom):
+        if type == 'temp':
+            trace_main.setData(np.array(self.temperature_buf)[:, 0], np.array(self.temperature_buf)[:, 1])
+            trace_zoom.setData(np.array(self.temperature_buf)[:, 0], np.array(self.temperature_buf)[:, 1])
+        if type == 'group':
+            trace_main.setData(self.groups_buf[index]['power'][:, 0], self.groups_buf[index]['power'][:, 1])
+            trace_zoom.setData(self.groups_buf[index]['power'][:, 0], self.groups_buf[index]['power'][:, 1])
+        if type == 'power':
+            rail = next((item for item in self.rail_buf if item['railnumber'] == self.b.rails_to_display[index]['name']), None)
+            voltage = rail['voltage'][1:]
+            current = rail['current'][1:]
+            power = np.empty_like(voltage)
+            power[:, 0] = voltage[:, 0]
+            power[:, 1] = voltage[:, 1] * current[:, 1]
+            trace_main.setData(power[:, 0], power[:, 1])
+            trace_zoom.setData(power[:, 0], power[:, 1])
+        if type == 'voltage':
+            rail = next((item for item in self.rail_buf if item['railnumber'] == self.b.rails_to_display[index]['name']), None)
+            voltage = rail['voltage'][1:]
+            trace_main.setData(voltage[:, 0], voltage[:, 1])
+            trace_zoom.setData(voltage[:, 0], voltage[:, 1])
+        if type == 'current':
+            rail = next((item for item in self.rail_buf if item['railnumber'] == self.b.rails_to_display[index]['name']), None)
+            current = rail['current'][1:]
+            trace_main.setData(current[:, 0], current[:, 1])
+            trace_zoom.setData(current[:, 0], current[:, 1])
+
     def traces_update(self):
         """updates global / zoom plot and updates values"""
-        self.zoom_graph.clear()
-        self.zoom_graph_vb.clear()
-        self.global_graph.clear()
-        self.global_graph_vb.clear()
+        if not self.args.load:
+            self.global_graph.disableAutoRange()
+            self.zoom_graph.disableAutoRange()
 
         self.zoom_graph.blockSignals(True)
         self.zoom_region.blockSignals(True)
@@ -508,54 +543,38 @@ class GUI(QtWidgets.QMainWindow):
             power[:, 0] = voltage[:, 0]
             power[:, 1] = voltage[:, 1] * current[:, 1]
             if self.list_rails_p[i].isChecked():
-                if power.shape[0] > 2:
-                    self.global_graph.plot(power, pen=COLORS[i])
-                    self.zoom_graph.plot(power, pen=COLORS[i])
-            if self.list_rails_v[i].isChecked():
-                if voltage.shape[0] > 2:
-                    self.global_graph_vb.addItem(pg.PlotCurveItem(voltage[:, 0], voltage[:, 1],
-                                                                  pen=pg.mkPen(COLORS[i], width=2,
-                                                                               style=QtCore.Qt.DashDotDotLine)))
-                    self.zoom_graph_vb.addItem(pg.PlotCurveItem(voltage[:, 0], voltage[:, 1],
-                                                                pen=pg.mkPen(COLORS[i], width=2,
-                                                                             style=QtCore.Qt.DashDotDotLine)))
+                self.list_power_plot_main[i].setData(power[:, 0], power[:, 1])
+                self.list_power_plot_zoom[i].setData(power[:, 0], power[:, 1])
+
             if self.list_rails_c[i].isChecked():
-                if current.shape[0] > 2:
-                    self.global_graph.plot(current, pen=pg.mkPen(COLORS[i], style=QtCore.Qt.DotLine))
-                    self.zoom_graph.plot(current, pen=pg.mkPen(COLORS[i], style=QtCore.Qt.DotLine))
+                self.list_current_plot_main[i].setData(current[:, 0], current[:, 1])
+                self.list_current_plot_zoom[i].setData(current[:, 0], current[:, 1])
+
+            if self.list_rails_v[i].isChecked():
+                self.list_voltage_plot_main[i].setData(voltage[:, 0], voltage[:, 1])
+                self.list_voltage_plot_zoom[i].setData(voltage[:, 0], voltage[:, 1])
 
         for j, group in enumerate(self.groups_buf):
             if self.list_groups_p[j].isChecked():
-                if group['power'].shape[0] > 2:
-                    self.global_graph.plot(group['power'], pen=pg.mkPen(GROUPS_COLORS[j], width=3))
-                    self.zoom_graph.plot(group['power'], pen=pg.mkPen(GROUPS_COLORS[j], width=3))
+                self.list_group_plot_main[j].setData(group['power'][:, 0], group['power'][:, 1])
+                self.list_group_plot_zoom[j].setData(group['power'][:, 0], group['power'][:, 1])
 
         if self.b.temperature_sensor and self.list_groups_t[0].isChecked():
-            if len(self.temperature_buf) > 2:
-                self.global_graph_vb.addItem(pg.PlotCurveItem(np.array(self.temperature_buf)[:, 0],
-                                                              np.array(self.temperature_buf)[:, 1],
-                                                              pen=pg.mkPen(TEMP_COLORS[0], width=2,
-                                                                           style=QtCore.Qt.DashDotLine)))
-                self.zoom_graph_vb.addItem(pg.PlotCurveItem(np.array(self.temperature_buf)[:, 0],
-                                                            np.array(self.temperature_buf)[:, 1],
-                                                            pen=pg.mkPen(TEMP_COLORS[0], width=2,
-                                                                         style=QtCore.Qt.DashDotLine)))
+            self.list_temp_plot_main.setData(np.array(self.temperature_buf)[:, 0], np.array(self.temperature_buf)[:, 1])
+            self.list_temp_plot_zoom.setData(np.array(self.temperature_buf)[:, 0], np.array(self.temperature_buf)[:, 1])
 
-        if self.timer.isActive():
-            time_len = self.rail_buf[0]['voltage'][-1, 0]
-            if time_len < 2:
-                minx = 0
-                maxx = time_len
-            else:
-                minx = time_len - 2
-                maxx = time_len
+        if self.timer.isActive() or self.args.load:
+            self.global_graph.autoRange(padding=0)
+            x_coor, y_coor = self.global_graph_pi.viewRange()
+            minx = x_coor[1] - 2 if x_coor[1] >= 2 else 0
+            maxx = x_coor[1]
             self.zoom_region.setRegion((minx, maxx))
+            self.zoom_graph.enableAutoRange('y')
             self.zoom_graph.setXRange(minx, maxx, padding=0)
-            self.global_graph.enableAutoRange('x')
-        self.global_graph.addItem(self.zoom_region, ignoreBounds=True)
 
         for reg in self.stop_region:
-            self.global_graph.addItem(reg, ignoreBounds=True)
+            if reg not in self.global_graph_pi.vb.allChildren():
+                self.global_graph_pi.addItem(reg, ignoreBounds=True)
 
         self.zoom_graph.blockSignals(False)
         self.zoom_region.blockSignals(False)
@@ -633,42 +652,72 @@ class GUI(QtWidgets.QMainWindow):
         """signal called when temperature checkbox state changed"""
         current_state = self.list_groups_t[0].isChecked()
         if current_state:
+            self.global_graph_vb.addItem(self.list_temp_plot_main)
+            self.zoom_graph_vb.addItem(self.list_temp_plot_zoom)
+
+            self.single_trace_update(0, 'temp', self.list_temp_plot_main, self.list_temp_plot_zoom)
+
             self.global_graph.setLabels(right='Temperature (°C)')
             self.zoom_graph.setLabels(right='Temperature (°C)')
+        else:
+            self.global_graph_vb.removeItem(self.list_temp_plot_main)
+            self.zoom_graph_vb.removeItem(self.list_temp_plot_zoom)
+
         self.label_v.setEnabled(not current_state)
-        for i, rail in enumerate(self.b.rails_to_display):
-            self.list_rails_v[i].setEnabled(not current_state)
-        self.traces_update()
+        for but in self.list_rails_v:
+            but.setEnabled(not current_state)
 
-    def g_power_changed(self):
+    def g_power_changed(self, index):
         """signal called when power checkbox state changed"""
-        if not FLAGS['display_all']:
-            self.traces_update()
+        if self.list_groups_p[index].isChecked():
+            self.global_graph.addItem(self.list_group_plot_main[index])
+            self.zoom_graph.addItem(self.list_group_plot_zoom[index])
 
-    def power_changed(self):
+            self.single_trace_update(index, 'group', self.list_group_plot_main[index], self.list_group_plot_zoom[index])
+        else:
+            self.global_graph.removeItem(self.list_group_plot_main[index])
+            self.zoom_graph.removeItem(self.list_group_plot_zoom[index])
+
+    def power_changed(self, index):
         """signal called when power checkbox state changed"""
-        if not FLAGS['display_all']:
-            self.traces_update()
+        if self.list_rails_p[index].isChecked():
+            self.global_graph.addItem(self.list_power_plot_main[index])
+            self.zoom_graph.addItem(self.list_power_plot_zoom[index])
+
+            self.single_trace_update(index, 'power', self.list_power_plot_main[index], self.list_power_plot_zoom[index])
+        else:
+            self.global_graph.removeItem(self.list_power_plot_main[index])
+            self.zoom_graph.removeItem(self.list_power_plot_zoom[index])
 
     def voltage_changed(self, index):
         """signal called when voltage checkbox state changed"""
-        if not FLAGS['display_all']:
-            if self.b.temperature_sensor:
-                self.global_graph.setLabels(right='Voltage (V)')
-                self.zoom_graph.setLabels(right='Voltage (V)')
-                self.list_groups_t[0].setEnabled(False)
-            if self.list_rails_v[index].isChecked():
-                FLAGS['voltage_displayed_count'] += 1
-            else:
-                FLAGS['voltage_displayed_count'] -= 1
-            if FLAGS['voltage_displayed_count'] == 0 and self.b.temperature_sensor:
-                self.list_groups_t[0].setEnabled(True)
-            self.traces_update()
+        if self.list_rails_v[index].isChecked():
+            FLAGS['voltage_displayed_count'] += 1
+            self.global_graph_vb.addItem(self.list_voltage_plot_main[index])
+            self.zoom_graph_vb.addItem(self.list_voltage_plot_zoom[index])
+            self.single_trace_update(index, 'voltage', self.list_voltage_plot_main[index], self.list_voltage_plot_zoom[index])
+        else:
+            FLAGS['voltage_displayed_count'] -= 1
+            self.global_graph_vb.removeItem(self.list_voltage_plot_main[index])
+            self.zoom_graph_vb.removeItem(self.list_voltage_plot_zoom[index])
 
-    def current_changed(self):
+        if self.b.temperature_sensor:
+            self.global_graph.setLabels(right='Voltage (V)')
+            self.zoom_graph.setLabels(right='Voltage (V)')
+            self.list_groups_t[0].setEnabled(False)
+            if FLAGS['voltage_displayed_count'] == 0:
+                self.list_groups_t[0].setEnabled(True)
+
+    def current_changed(self, index):
         """signal called when current checkbox state changed"""
-        if not FLAGS['display_all']:
-            self.traces_update()
+        if self.list_rails_c[index].isChecked():
+            self.global_graph.addItem(self.list_current_plot_main[index])
+            self.zoom_graph.addItem(self.list_current_plot_zoom[index])
+
+            self.single_trace_update(index, 'current', self.list_current_plot_main[index], self.list_current_plot_zoom[index])
+        else:
+            self.global_graph.removeItem(self.list_current_plot_main[index])
+            self.zoom_graph.removeItem(self.list_current_plot_zoom[index])
 
     def switch_res_changed(self, index):
         """switches the resistance and update the corresponding box if it has been correctly done"""
@@ -685,49 +734,48 @@ class GUI(QtWidgets.QMainWindow):
 
     def hide_all_power(self):
         """hides / shows all power rails depending of the checkbox's state"""
-        FLAGS['display_all'] = True
         current_state = self.label_p.isChecked()
-        for i, rail in enumerate(self.b.rails_to_display):
-            self.list_rails_p[i].setChecked(current_state)
-        FLAGS['display_all'] = False
-        self.traces_update()
+        for but in self.list_rails_p:
+            but.setChecked(current_state)
 
     def hide_all_voltage(self):
         """hides / shows all voltage rails depending of the checkbox's state"""
-        FLAGS['display_all'] = True
         current_state = self.label_v.isChecked()
-        for i, rail in enumerate(self.b.rails_to_display):
-            self.list_rails_v[i].setChecked(current_state)
-        FLAGS['voltage_displayed_count'] = len(self.b.rails_to_display) if current_state else 0
-        FLAGS['display_all'] = False
-        self.list_groups_t[0].setEnabled(not current_state)
-        self.global_graph.setLabels(right='Voltage (V)')
-        self.zoom_graph.setLabels(right='Voltage (V)')
-        self.traces_update()
+        for but in self.list_rails_v:
+            but.setChecked(current_state)
+        FLAGS['voltage_displayed_count'] = len(self.list_rails_v) if current_state else 0
+        if self.b.temperature_sensor:
+            self.list_groups_t[0].setEnabled(not current_state)
+            self.global_graph.setLabels(right='Voltage (V)')
+            self.zoom_graph.setLabels(right='Voltage (V)')
 
     def hide_all_current(self):
         """hides / shows all current rails depending of the checkbox's state"""
-        FLAGS['display_all'] = True
         current_state = self.label_c.isChecked()
-        for i, rail in enumerate(self.b.rails_to_display):
-            self.list_rails_c[i].setChecked(current_state)
-        FLAGS['display_all'] = False
-        self.traces_update()
+        for but in self.list_rails_c:
+            but.setChecked(current_state)
 
     def change_color(self, index):
         """updates the color of the selected rail"""
         COLORS[index] = self.list_color_rails[index].color().name()
-        self.traces_update()
+        self.list_power_plot_main[index].setPen(COLORS[index])
+        self.list_power_plot_zoom[index].setPen(COLORS[index])
+        self.list_current_plot_main[index].setPen(pg.mkPen(COLORS[index], style=QtCore.Qt.DotLine))
+        self.list_current_plot_zoom[index].setPen(pg.mkPen(COLORS[index], style=QtCore.Qt.DotLine))
+        self.list_voltage_plot_main[index].setPen(pg.mkPen(COLORS[index], width=2, style=QtCore.Qt.DashDotDotLine))
+        self.list_voltage_plot_zoom[index].setPen(pg.mkPen(COLORS[index], width=2, style=QtCore.Qt.DashDotDotLine))
 
     def change_color_g(self, index):
         """updates the color of the selected group"""
         GROUPS_COLORS[index] = self.list_color_groups[index].color().name()
-        self.traces_update()
+        self.list_group_plot_main[index].setPen(pg.mkPen(GROUPS_COLORS[index], width=3))
+        self.list_group_plot_zoom[index].setPen(pg.mkPen(GROUPS_COLORS[index], width=3))
 
     def change_color_t(self):
         """updates the color of the temperature"""
         TEMP_COLORS[0] = self.list_color_temperature[0].color().name()
-        self.traces_update()
+        self.list_temp_plot_main.setPen(pg.mkPen(TEMP_COLORS[0], width=2, style=QtCore.Qt.DashDotDotLine))
+        self.list_temp_plot_zoom.setPen(pg.mkPen(TEMP_COLORS[0], width=2, style=QtCore.Qt.DashDotDotLine))
 
     def save_pmt(self):
         """saves the capture as binary file with specified name"""
@@ -830,18 +878,43 @@ class GUI(QtWidgets.QMainWindow):
                     rail['current'] = [[0, 0]]
                     rail['voltage'] = [[0, 0]]
                 drv_ftdi.DATA_LOCK.release()
+
+                self.worker.resume_thread()
+                self.timer.start(1000)
+
                 if self.b.temperature_sensor:
                     drv_ftdi.TEMP_DATA_LOCK.acquire()
                     self.b.temp_buf = []
                     drv_ftdi.TEMP_DATA_LOCK.release()
+                    if self.list_groups_t[0].isChecked():
+                        self.global_graph_vb.addItem(self.list_temp_plot_main)
+                        self.zoom_graph_vb.addItem(self.list_temp_plot_zoom)
+                for i in range(len(self.list_group_plot_main)):
+                    if self.list_groups_p[i].isChecked():
+                        self.global_graph.addItem(self.list_group_plot_main[i])
+                        self.zoom_graph.addItem(self.list_group_plot_zoom[i])
+                for j in range(len(self.list_power_plot_main)):
+                    if self.list_rails_p[j].isChecked():
+                        self.global_graph.addItem(self.list_power_plot_main[j])
+                        self.zoom_graph.addItem(self.list_power_plot_zoom[j])
+                    if self.list_rails_c[j].isChecked():
+                        self.global_graph.addItem(self.list_current_plot_main[j])
+                        self.zoom_graph.addItem(self.list_current_plot_zoom[j])
+                    if self.list_rails_v[j].isChecked():
+                        self.global_graph_vb.addItem(self.list_voltage_plot_main[j])
+                        self.zoom_graph_vb.addItem(self.list_voltage_plot_zoom[j])
+                self.global_graph.addItem(self.zoom_region, ignoreBounds=True)
+                self.traces_update()
+                self.zoom_region.setRegion((0, 1))
+                self.global_graph.setXRange(0, 1, padding=0)
+
             self.status_bar.showMessage("Recording")
-            self.worker.resume_thread()
-            self.timer.start(1000)
             self.pause_but.setChecked(False)
-            self.start_but.setChecked(True)
             self.stop_but.setChecked(False)
             self.redo_but.setChecked(False)
             if self.state == 'stop':
+                self.worker.resume_thread()
+                self.timer.start(1000)
                 self.resume = time.time() - drv_ftdi.T_START
                 region = pg.LinearRegionItem(brush=QtGui.QBrush(QtGui.QColor(255, 0, 0, 50)), movable=False)
                 self.zoom_region.setZValue(10)
@@ -858,7 +931,6 @@ class GUI(QtWidgets.QMainWindow):
             self.worker.pause_thread()
             self.pause_but.setChecked(False)
             self.start_but.setChecked(False)
-            self.stop_but.setChecked(True)
             self.redo_but.setChecked(False)
             self.timer.stop()
             self.state = 'stop'
@@ -871,7 +943,6 @@ class GUI(QtWidgets.QMainWindow):
         if self.state != 'stop':
             if self.state != 'pause':
                 self.status_bar.showMessage("Pause Recording")
-                self.pause_but.setChecked(True)
                 self.start_but.setChecked(True)
                 self.stop_but.setChecked(False)
                 self.redo_but.setChecked(False)
@@ -881,17 +952,17 @@ class GUI(QtWidgets.QMainWindow):
                 self.status_bar.showMessage("Recording")
                 self.timer.start(1000)
                 self.state = 'start'
-        else:
-            self.pause_but.setChecked(False)
 
     def redo_record(self):
         """re initialization of the shared variable containing measured values"""
         self.stop_record()
         for rail in self.rail_buf:
-            rail['current'] = [[0, 0]]
-            rail['voltage'] = [[0, 0]]
+            rail['current'] = np.zeros((2, 2), dtype=np.float16)
+            rail['voltage'] = np.zeros((2, 2), dtype=np.float16)
         if self.b.temperature_sensor:
-            self.temperature_buf = []
+            self.temperature_buf = np.zeros((2, 2), dtype=np.float16)
+        for group in self.groups_buf:
+            group = []
         self.zoom_graph.clear()
         self.zoom_graph_vb.clear()
         self.global_graph.clear()
@@ -1116,6 +1187,19 @@ class GUI(QtWidgets.QMainWindow):
         self.button_lay.addWidget(self.label_res, 0, 5)
 
         for i, rail in enumerate(self.b.rails_to_display):
+
+            self.list_power_plot_main.append(pg.PlotCurveItem([], pen=COLORS[i], skipFiniteCheck=True, dynamicRangeLimit=None, clipToView=True))
+            self.list_power_plot_zoom.append(pg.PlotCurveItem([], pen=COLORS[i], skipFiniteCheck=True, dynamicRangeLimit=None, clipToView=True))
+
+            self.list_current_plot_main.append(pg.PlotCurveItem([], pen=pg.mkPen(COLORS[i], style=QtCore.Qt.DotLine), skipFiniteCheck=True, dynamicRangeLimit=None, clipToView=True))
+            self.list_current_plot_zoom.append(pg.PlotCurveItem([], pen=pg.mkPen(COLORS[i], style=QtCore.Qt.DotLine), skipFiniteCheck=True, dynamicRangeLimit=None, clipToView=True))
+
+            self.list_voltage_plot_main.append(pg.PlotCurveItem([], pen=pg.mkPen(COLORS[i], width=2, style=QtCore.Qt.DashDotDotLine), skipFiniteCheck=True, dynamicRangeLimit=None))
+            self.list_voltage_plot_zoom.append(pg.PlotCurveItem([], pen=pg.mkPen(COLORS[i], width=2, style=QtCore.Qt.DashDotDotLine), skipFiniteCheck=True, dynamicRangeLimit=None))
+
+            self.global_graph.addItem( self.list_power_plot_main[i])
+            self.zoom_graph.addItem(self.list_power_plot_zoom[i])
+
             self.list_rails_label.append(QtGui.QPushButton(rail['name']))
             self.list_menu.append(QtGui.QMenu())
             if not self.args.load:
@@ -1143,9 +1227,9 @@ class GUI(QtWidgets.QMainWindow):
             self.button_lay.addWidget(self.list_rails_v[i], i + 1, 3)
             self.button_lay.addWidget(self.list_rails_c[i], i + 1, 4)
             self.list_color_rails[i].sigColorChanged.connect(lambda init, i=i: self.change_color(i))
-            self.list_rails_p[i].stateChanged.connect(self.power_changed)
+            self.list_rails_p[i].stateChanged.connect(lambda init, i=i: self.power_changed(i))
             self.list_rails_v[i].stateChanged.connect(lambda init, i=i: self.voltage_changed(i))
-            self.list_rails_c[i].stateChanged.connect(self.current_changed)
+            self.list_rails_c[i].stateChanged.connect(lambda init, i=i: self.current_changed(i))
 
             self.list_right_lay_n.append(QtGui.QLabel(rail['name']))
             self.list_right_lay_p.append(QtGui.QLabel(""))
@@ -1167,13 +1251,17 @@ class GUI(QtWidgets.QMainWindow):
             self.left_lay.addWidget(self.group_control)
 
             for i, group in enumerate(self.b.power_groups):
+
+                self.list_group_plot_main.append(pg.PlotCurveItem([], pen=pg.mkPen(GROUPS_COLORS[i], width=3), skipFiniteCheck=True, dynamicRangeLimit=None, clipToView=True))
+                self.list_group_plot_zoom.append(pg.PlotCurveItem([], pen=pg.mkPen(GROUPS_COLORS[i], width=3), skipFiniteCheck=True, dynamicRangeLimit=None, clipToView=True))
+
                 self.list_groups_label.append(QtGui.QPushButton(group['name']))
                 self.list_color_groups.append(pg.ColorButton(color=GROUPS_COLORS[i]))
                 self.list_color_groups[i].setMinimumHeight(30)
                 self.list_color_groups[i].setMinimumWidth(30)
                 self.list_groups_p.append(QtGui.QCheckBox())
                 self.list_groups_p[i].setChecked(False)
-                self.list_groups_p[i].stateChanged.connect(self.g_power_changed)
+                self.list_groups_p[i].stateChanged.connect(lambda init, i=i: self.g_power_changed(i))
                 self.group_lay.addWidget(self.list_groups_label[i], i + 1, 0)
                 self.group_lay.addWidget(self.list_color_groups[i], i + 1, 1)
                 self.group_lay.addWidget(self.list_groups_p[i], i + 1, 2)
@@ -1187,6 +1275,12 @@ class GUI(QtWidgets.QMainWindow):
             self.left_lay.addLayout(self.group_lay)
 
         if self.b.temperature_sensor:
+            self.global_graph_vb.addItem(pg.PlotCurveItem([], pen=pg.mkPen(TEMP_COLORS[0], width=2, style=QtCore.Qt.DashDotDotLine), skipFiniteCheck=True, dynamicRangeLimit=None))
+            self.zoom_graph_vb.addItem(pg.PlotCurveItem([], pen=pg.mkPen(TEMP_COLORS[0], width=2, style=QtCore.Qt.DashDotDotLine), skipFiniteCheck=True, dynamicRangeLimit=None))
+
+            self.list_temp_plot_main = self.global_graph_vb.addedItems[-1]
+            self.list_temp_plot_zoom = self.zoom_graph_vb.addedItems[-1]
+
             self.temperature_control = QtGui.QLabel("Board Temperature Sensor")
             self.temperature_control.setFont(QtGui.QFont("Arial", 8, QtGui.QFont.Black))
             self.left_lay.addWidget(self.temperature_control)
@@ -1206,9 +1300,8 @@ class GUI(QtWidgets.QMainWindow):
             self.left_lay.addLayout(self.temperature_lay)
 
         self.global_lay.addLayout(self.left_lay)
-
-        self.global_graph.setDownsampling(ds=True, auto=True, mode='peak')
-        self.global_graph.setClipToView(True)
+        self.global_graph.disableAutoRange()
+        #self.global_graph.setDownsampling(ds=True, auto=True, mode='peak')
         self.global_graph.setMouseEnabled(x=True, y=False)
         self.global_graph_pi.showAxis('right')
         self.global_graph_pi.scene().addItem(self.global_graph_vb)
@@ -1221,8 +1314,8 @@ class GUI(QtWidgets.QMainWindow):
         self.global_graph.addLine(y=0)
         self.global_graph.showGrid(x=True, y=True, alpha=0.30)
         self.plot_lay.addWidget(self.global_graph, 0, 0)
+        self.global_graph.addItem(self.zoom_region, ignoreBounds=True)
 
-        self.zoom_graph.setDownsampling(ds=True, auto=True, mode='peak')
         self.zoom_graph.setClipToView(False)
         self.zoom_graph.setMouseEnabled(x=True, y=False)
         self.zoom_graph_pi.showAxis('right')
@@ -1238,6 +1331,10 @@ class GUI(QtWidgets.QMainWindow):
         self.zoom_graph.addLine(y=0)
         self.zoom_graph.showGrid(x=True, y=True, alpha=0.30)
         self.plot_lay.addWidget(self.zoom_graph, 1, 0)
+
+        if self.args.load:
+            self.zoom_graph.enableAutoRange('y')
+            self.global_graph.enableAutoRange('y')
 
         self.zoom_region.setZValue(10)
         self.global_lay.addLayout(self.plot_lay, 2)
