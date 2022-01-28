@@ -175,6 +175,17 @@ less to 9mA to allow the switching from high-current shunt to low-current shunt.
 **The user can modify this offset depending of the needs.**
 **Switch between low-current shunt to high-current shunt is always authorized, we don't do any pre-check.**
 
+### Custom power groups
+
+Each board has pre-defined power groups based on SoC implementation. It's also possible to create custom power groups
+to ease the measurement of a specific set of rails.
+To do so, two steps are required:
+- User must add the power group in the proper board configuration file in the format:
+``{'name': 'CUSTOM_GROUP', 'rails': ['RAIL_X', 'RAIL_Y']}``
+Power rails specified in the 'rails' variable must be described in the 'mapping_power' structure of the board.
+- User must add the custom group name in the 'RAILS_TO_PROBE' variable described in ``program_config.py`` file.
+An example could be:
+``RAILS_TO_PROBE = ['all', 'CUSTOM_GROUP']``
 
 ## Important information
 
