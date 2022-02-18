@@ -28,7 +28,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-'''
+"""
 ######################### Rails to probe #########################
 By default, the program will loop over every power rail of the specified board sequentially.
 If you want to read only a specific subset of rail(s), please modify the below variable, with 'rail_name'.
@@ -37,8 +37,8 @@ You can also specify power group.
 Example for iMX8DXL EVK:
 RAILS_TO_PROBE = ['5V0', '3V3_USB', 'VDD_SNVS1', 'GROUP_PLATFORM']
 For rails' name please refer to board_name.py in directory board_configuration, structure mapping_power
-'''
-RAILS_TO_PROBE = ['all']
+"""
+RAILS_TO_PROBE = ["all"]
 
 # This offset is used to calculate the current limit for switching resistor to low_current shunt.
 # By default, the value is defined to 10%, but the user can change it depending of the needs.

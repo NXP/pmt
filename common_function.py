@@ -34,51 +34,59 @@ import time
 
 import ftdi_def as ft_def
 
-if platform.system() == 'Linux':
+if platform.system() == "Linux":
     import pylibftdi
 
-    OS = 'Linux'
-elif platform.system() == 'Windows':
+    OS = "Linux"
+elif platform.system() == "Windows":
     import ftd2xx as ftdi
 
-    OS = 'Windows'
+    OS = "Windows"
 
 
 def ftdi_i2c_init(ftdi_device, pins):
     """low-level I2C initialization"""
-    logging.debug('ftdi_i2c_init')
-    val_bitmask = pins['ftdi'][2]
-    dir_bitmask = pins['ftdi'][1]
+    logging.debug("ftdi_i2c_init")
+    val_bitmask = pins["ftdi"][2]
+    dir_bitmask = pins["ftdi"][1]
     buf = []
     buf.append(
-        ft_def.MPSSE_CMD_DISABLE_CLOCK_DIVIDE_BY_5)  # Ensure disable clock divide by 5 for 60Mhz master clock
-    buf.append(ft_def.MPSSE_CMD_DISABLE_ADAPTIVE_CLOCKING)  # Ensure turn off adaptive clocking
+        ft_def.MPSSE_CMD_DISABLE_CLOCK_DIVIDE_BY_5
+    )  # Ensure disable clock divide by 5 for 60Mhz master clock
     buf.append(
-        ft_def.MPSSE_CMD_ENABLE_3PHASE_CLOCKING)  # PAC 1934 need it. Enable 3 phase data clock, used by I2C to allow data on one clock edge
+        ft_def.MPSSE_CMD_DISABLE_ADAPTIVE_CLOCKING
+    )  # Ensure turn off adaptive clocking
+    buf.append(
+        ft_def.MPSSE_CMD_ENABLE_3PHASE_CLOCKING
+    )  # PAC 1934 need it. Enable 3 phase data clock, used by I2C to allow data on one clock edge
     buf_to_send = bytes(buf)
     ftdic_write(ftdi_device, buf_to_send)
     buf.clear()
     buf.append(
-        ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)  # Command to set directions of lower 8 pins and force value on bits set as output
+        ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE
+    )  # Command to set directions of lower 8 pins and force value on bits set as output
     buf.append(ft_def.VALUE_SCLHIGH_SDAHIGH | val_bitmask)
     buf.append(ft_def.DIRECTION_SCLOUT_SDAOUT | dir_bitmask)
     buf.append(ft_def.MPSSE_CMD_SET_CLOCK_DIVISOR)  # Command to set clock divisor
     buf.append(
-        ft_def.CLOCK_DIVISOR_400K & 0xFF)  # problem with byte(), result M instead of 4D - Set 0xValueL of clock divisor
+        ft_def.CLOCK_DIVISOR_400K & 0xFF
+    )  # problem with byte(), result M instead of 4D - Set 0xValueL of clock divisor
     buf.append((ft_def.CLOCK_DIVISOR_400K >> 8) & 0xFF)  # Set 0xValueH of clock divisor
     buf_to_send = bytes(buf)
     ftdic_write(ftdi_device, buf_to_send)
     buf.clear()
-    buf.append(ft_def.MPSEE_CMD_DISABLE_LOOPBACK)  # Command to turn off loop back of TDI/TDO connection
+    buf.append(
+        ft_def.MPSEE_CMD_DISABLE_LOOPBACK
+    )  # Command to turn off loop back of TDI/TDO connection
     buf_to_send = bytes(buf)
     ftdic_write(ftdi_device, buf_to_send)
 
 
 def ftdi_i2c_stop(ftdi_device, pins):
     """low-level I2C stop"""
-    logging.debug('ftdi_i2c_stop')
-    val_bitmask = pins['ftdi'][2]
-    dir_bitmask = pins['ftdi'][1]
+    logging.debug("ftdi_i2c_stop")
+    val_bitmask = pins["ftdi"][2]
+    dir_bitmask = pins["ftdi"][1]
     buf = []
     buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
     buf.append(ft_def.VALUE_SCLLOW_SDALOW | val_bitmask)  # SCL low, SDA low
@@ -95,9 +103,9 @@ def ftdi_i2c_stop(ftdi_device, pins):
 
 def ftdi_i2c_read(ftdi_device, pins, is_nack):
     """low-level I2C read"""
-    logging.debug('ftdi_i2c_read')
-    val_bitmask = pins['ftdi'][2]
-    dir_bitmask = pins['ftdi'][1]
+    logging.debug("ftdi_i2c_read")
+    val_bitmask = pins["ftdi"][2]
+    dir_bitmask = pins["ftdi"][1]
     buf = []
     buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
     buf.append(ft_def.VALUE_SCLLOW_SDALOW | val_bitmask)
@@ -123,9 +131,9 @@ def ftdi_i2c_read(ftdi_device, pins, is_nack):
 
 def ftdi_i2c_read_buffer(ftdi_device, pins, len):
     """low-level I2C read"""
-    logging.debug('ftdi_i2c_read_buffer')
-    val_bitmask = pins['ftdi'][2]
-    dir_bitmask = pins['ftdi'][1]
+    logging.debug("ftdi_i2c_read_buffer")
+    val_bitmask = pins["ftdi"][2]
+    dir_bitmask = pins["ftdi"][1]
     buf = []
     for j in range(len):
         buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
@@ -152,9 +160,9 @@ def ftdi_i2c_read_buffer(ftdi_device, pins, len):
 
 def ftdi_i2c_write(ftdi_device, pins, data):
     """low-level I2C write"""
-    logging.debug('ftdi_i2c_write')
-    val_bitmask = pins['ftdi'][2]
-    dir_bitmask = pins['ftdi'][1]
+    logging.debug("ftdi_i2c_write")
+    val_bitmask = pins["ftdi"][2]
+    dir_bitmask = pins["ftdi"][1]
     buf = []
     buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
     buf.append(ft_def.VALUE_SCLLOW_SDALOW | val_bitmask)
@@ -183,9 +191,9 @@ def ftdi_i2c_write(ftdi_device, pins, data):
 
 def ftdi_i2c_start(ftdi_device, pins):
     """low-level I2C start"""
-    logging.debug('ftdi_i2c_start')
-    val_bitmask = pins['ftdi'][2]
-    dir_bitmask = pins['ftdi'][1]
+    logging.debug("ftdi_i2c_start")
+    val_bitmask = pins["ftdi"][2]
+    dir_bitmask = pins["ftdi"][1]
     buf = []
     buf.append(ft_def.MPSSE_CMD_SET_DATA_BITS_LOWBYTE)
     buf.append(ft_def.VALUE_SCLHIGH_SDAHIGH | val_bitmask)  # SCL high, SDA high
@@ -202,50 +210,50 @@ def ftdi_i2c_start(ftdi_device, pins):
 
 def ftdic_write(ftdi_device, buf):
     """FTDI write function depending of the current OS"""
-    if OS == 'Linux':
+    if OS == "Linux":
         ftdi_device.write(bytes(buf))
-    elif OS == 'Windows':
+    elif OS == "Windows":
         ftdi_device.write(buf)
 
 
 def ftdic_write_gpio(ftdi_device, buf):
     """FTDI write gpio function depending of the current OS"""
-    if OS == 'Linux':
+    if OS == "Linux":
         ftdi_device.write(bytes([buf]))
-    elif OS == 'Windows':
+    elif OS == "Windows":
         ftdi_device.write(bytes([buf]))
 
 
 def ftdic_read_gpio(ftdi_device):
     """FTDI read depending function of the current OS"""
-    if OS == 'Linux':
+    if OS == "Linux":
         return ftdi_device.read(1)[0]
-    elif OS == 'Windows':
+    elif OS == "Windows":
         return ftdi_device.getBitMode()
 
 
 def ftdi_open(board_id, channel, desc=None):
     """opens FTDI device function depending of the current OS"""
-    if OS == 'Linux':
+    if OS == "Linux":
         return pylibftdi.Device(device_index=board_id, interface_select=channel + 1)
-    elif OS == 'Windows':
-        add = desc.get('location')
+    elif OS == "Windows":
+        add = desc.get("location")
         dev_list = ftdi.listDevices()
         dev_channel = None
         for i, d in enumerate(dev_list):
-            if d != b'':
-                if chr(d[-1]) == chr(ord('A') + channel):
+            if d != b"":
+                if chr(d[-1]) == chr(ord("A") + channel):
                     tmp_dev = ftdi.getDeviceInfoDetail(i)
-                    if tmp_dev.get('location') == add + channel:
-                        dev_channel = tmp_dev.get('index')
+                    if tmp_dev.get("location") == add + channel:
+                        dev_channel = tmp_dev.get("index")
             else:
                 pass
         return ftdi.open(dev_channel)
 
 
 def ftdic_setbitmode(ftdi_device, out_pins, value):
-    """"FTDI set bitmode function depending of the current OS"""
-    if OS == 'Linux':
+    """ "FTDI set bitmode function depending of the current OS"""
+    if OS == "Linux":
         ftdi_device.ftdi_fn.ftdi_set_bitmode(out_pins, value)
-    elif OS == 'Windows':
+    elif OS == "Windows":
         ftdi_device.setBitMode(out_pins, value)

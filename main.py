@@ -42,9 +42,9 @@ LOG_LEVEL = logging.WARNING
 
 def list_supported_board():
     """prints supported boards"""
-    print('Board(s) currently supported :')
+    print("Board(s) currently supported :")
     for board_name in common.supported_boards:
-        print('- ' + board_name)
+        print("- " + board_name)
 
 
 def found_bootm(bootm_name, board):
@@ -58,12 +58,12 @@ def found_bootm(bootm_name, board):
 def found_gpio(gpio_name, board):
     """returns the gpio if the gpio name exist in the gpio structure of the board"""
     for gpio in board.board_mapping_gpio:
-        if gpio_name == gpio['name']:
+        if gpio_name == gpio["name"]:
             return gpio
         else:
             pass
     for gpio in board.board_mapping_gpio_i2c:
-        if gpio_name == gpio['name']:
+        if gpio_name == gpio["name"]:
             return gpio
         else:
             pass
@@ -73,7 +73,10 @@ def found_gpio(gpio_name, board):
 def found_value(gpio_value):
     """checks if the gpio value entered in command line is supported and return the corresponding value"""
     if gpio_value in common.gpio_supported_values:
-        if common.gpio_supported_values[gpio_value] == 0 or common.gpio_supported_values[gpio_value] == 1:
+        if (
+            common.gpio_supported_values[gpio_value] == 0
+            or common.gpio_supported_values[gpio_value] == 1
+        ):
             return common.gpio_supported_values[gpio_value] * 0xFF
         else:
             return common.gpio_supported_values[gpio_value]
@@ -85,90 +88,272 @@ def main():
     """checks arguments passed in command line and starts the program"""
     logging.basicConfig(level=LOG_LEVEL)
 
-    parser = argparse.ArgumentParser(description='PMT tool for power monitoring')
-    subparser = parser.add_subparsers(dest='command')
+    parser = argparse.ArgumentParser(description="PMT tool for power monitoring")
+    subparser = parser.add_subparsers(dest="command")
 
-    parser_lsftdi = subparser.add_parser('lsftdi', help='list available ftdi chip(s) for board location and id information')
-    parser_lsboard = subparser.add_parser('lsboard', help='list supported board(s)')
+    parser_lsftdi = subparser.add_parser(
+        "lsftdi",
+        help="list available ftdi chip(s) for board location and id information",
+    )
+    parser_lsboard = subparser.add_parser("lsboard", help="list supported board(s)")
 
-    parser_lsgpio = subparser.add_parser('lsgpio', help='list gpio available for a specific board')
-    parser_lsgpio.add_argument('-b', '--board', required=False, help='specify supported board name', metavar='board')
-    parser_lsgpio.add_argument('-i', '--id', required=False, type=int, default=-1, help='specify id of the board', metavar='id')
+    parser_lsgpio = subparser.add_parser(
+        "lsgpio", help="list gpio available for a specific board"
+    )
+    parser_lsgpio.add_argument(
+        "-b",
+        "--board",
+        required=False,
+        help="specify supported board name",
+        metavar="board",
+    )
+    parser_lsgpio.add_argument(
+        "-i",
+        "--id",
+        required=False,
+        type=int,
+        default=-1,
+        help="specify id of the board",
+        metavar="id",
+    )
 
-    parser_lsbootmode = subparser.add_parser('lsbootmode', help='list boot modes available for a specific board')
-    parser_lsbootmode.add_argument('-b', '--board', required=False, help='specify supported board name', metavar='board')
-    parser_lsbootmode.add_argument('-i', '--id', required=False, type=int, default=-1, help='specify id of the board', metavar='id')
+    parser_lsbootmode = subparser.add_parser(
+        "lsbootmode", help="list boot modes available for a specific board"
+    )
+    parser_lsbootmode.add_argument(
+        "-b",
+        "--board",
+        required=False,
+        help="specify supported board name",
+        metavar="board",
+    )
+    parser_lsbootmode.add_argument(
+        "-i",
+        "--id",
+        required=False,
+        type=int,
+        default=-1,
+        help="specify id of the board",
+        metavar="id",
+    )
 
-    parser_reset = subparser.add_parser('reset', help='reset the specified board')
-    parser_reset.add_argument('-b', '--board', required=False, help='specify supported board name', metavar='board')
-    parser_reset.add_argument('-bootm', '--boot_mode', required=False, help='specify boot mode', metavar='boot mode')
-    parser_reset.add_argument('-d', '--delay', required=False, type=int, default=0, help='reset the board after a delay', metavar='delay')
-    parser_reset.add_argument('-i', '--id', required=False, type=int, default=-1, help='specify id of the board', metavar='id')
+    parser_reset = subparser.add_parser("reset", help="reset the specified board")
+    parser_reset.add_argument(
+        "-b",
+        "--board",
+        required=False,
+        help="specify supported board name",
+        metavar="board",
+    )
+    parser_reset.add_argument(
+        "-bootm",
+        "--boot_mode",
+        required=False,
+        help="specify boot mode",
+        metavar="boot mode",
+    )
+    parser_reset.add_argument(
+        "-d",
+        "--delay",
+        required=False,
+        type=int,
+        default=0,
+        help="reset the board after a delay",
+        metavar="delay",
+    )
+    parser_reset.add_argument(
+        "-i",
+        "--id",
+        required=False,
+        type=int,
+        default=-1,
+        help="specify id of the board",
+        metavar="id",
+    )
 
-    parser_setgpio = subparser.add_parser('set_gpio', help='control gpio of the specified board')
-    parser_setgpio.add_argument('-b', '--board', required=False, help='specify supported board name', metavar='board')
-    parser_setgpio.add_argument('-g', '--gpio_name', required=True, help='GPIO to modify', metavar='gpio')
-    parser_setgpio.add_argument('-v', '--value', required=True, help='desired value for GPIO', metavar='val')
-    parser_setgpio.add_argument('-i', '--id', required=False, type=int, default=-1, help='specify id of the board', metavar='id')
+    parser_setgpio = subparser.add_parser(
+        "set_gpio", help="control gpio of the specified board"
+    )
+    parser_setgpio.add_argument(
+        "-b",
+        "--board",
+        required=False,
+        help="specify supported board name",
+        metavar="board",
+    )
+    parser_setgpio.add_argument(
+        "-g", "--gpio_name", required=True, help="GPIO to modify", metavar="gpio"
+    )
+    parser_setgpio.add_argument(
+        "-v", "--value", required=True, help="desired value for GPIO", metavar="val"
+    )
+    parser_setgpio.add_argument(
+        "-i",
+        "--id",
+        required=False,
+        type=int,
+        default=-1,
+        help="specify id of the board",
+        metavar="id",
+    )
 
-    parser_monitor = subparser.add_parser('monitor', help='monitoring data collected in GUI or TUI')
-    parser_monitor.add_argument('-b', '--board', required=False, help='specify supported board name', metavar='board')
-    parser_monitor.add_argument('-m', '--mode', required=False, help='monitoring mode, gui or tui', metavar='mode')
-    parser_monitor.add_argument('-l', '--load', required=False, help='load a .csv or .pmt file in GUI', metavar='file')
-    parser_monitor.add_argument('-i', '--id', required=False, type=int, default=-1, help='specify id of the board', metavar='id')
-    parser_monitor.add_argument('-d', '--dump', required=False, help='dump data in TUI mode', metavar='file')
-    parser_monitor.add_argument('-t', '--time', required=False, help='monitor in TUI during specified time', metavar='time')
+    parser_monitor = subparser.add_parser(
+        "monitor", help="monitoring data collected in GUI or TUI"
+    )
+    parser_monitor.add_argument(
+        "-b",
+        "--board",
+        required=False,
+        help="specify supported board name",
+        metavar="board",
+    )
+    parser_monitor.add_argument(
+        "-m",
+        "--mode",
+        required=False,
+        help="monitoring mode, gui or tui",
+        metavar="mode",
+    )
+    parser_monitor.add_argument(
+        "-l",
+        "--load",
+        required=False,
+        help="load a .csv or .pmt file in GUI",
+        metavar="file",
+    )
+    parser_monitor.add_argument(
+        "-i",
+        "--id",
+        required=False,
+        type=int,
+        default=-1,
+        help="specify id of the board",
+        metavar="id",
+    )
+    parser_monitor.add_argument(
+        "-d", "--dump", required=False, help="dump data in TUI mode", metavar="file"
+    )
+    parser_monitor.add_argument(
+        "-t",
+        "--time",
+        required=False,
+        help="monitor in TUI during specified time",
+        metavar="time",
+    )
 
-    parser_resume = subparser.add_parser('resume', help='resume / suspend the board')
-    parser_resume.add_argument('-b', '--board', required=False, help='specify supported board name', metavar='board')
-    parser_resume.add_argument('-i', '--id', required=False, type=int, default=-1, help='specify id of the board',
-                               metavar='id')
-    parser_version = parser.add_argument('-v', '--version', action='version', version=gui.PROGRAM_VERSION, help='print the current version of the PMT')
+    parser_resume = subparser.add_parser("resume", help="resume / suspend the board")
+    parser_resume.add_argument(
+        "-b",
+        "--board",
+        required=False,
+        help="specify supported board name",
+        metavar="board",
+    )
+    parser_resume.add_argument(
+        "-i",
+        "--id",
+        required=False,
+        type=int,
+        default=-1,
+        help="specify id of the board",
+        metavar="id",
+    )
+    parser_version = parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=gui.PROGRAM_VERSION,
+        help="print the current version of the PMT",
+    )
 
-    parser_eeprom = subparser.add_parser('eeprom', help='EEPROM utility')
-    parser_eeprom.add_argument('-m', '--mode', required=False, help='specify read or write to EEPROM', metavar='mode')
-    parser_eeprom.add_argument('-i', '--id', required=False, type=int, default=-1,
-                               help='specify id of the board returned by lsftdi', metavar='id')
-    parser_eeprom.add_argument('-f', '--file', required=False, help='Helper file containing data to write',
-                               metavar='file')
+    parser_eeprom = subparser.add_parser("eeprom", help="EEPROM utility")
+    parser_eeprom.add_argument(
+        "-m",
+        "--mode",
+        required=False,
+        help="specify read or write to EEPROM",
+        metavar="mode",
+    )
+    parser_eeprom.add_argument(
+        "-i",
+        "--id",
+        required=False,
+        type=int,
+        default=-1,
+        help="specify id of the board returned by lsftdi",
+        metavar="id",
+    )
+    parser_eeprom.add_argument(
+        "-f",
+        "--file",
+        required=False,
+        help="Helper file containing data to write",
+        metavar="file",
+    )
 
-    parser_server = subparser.add_parser('server', help='server utility')
-    parser_server.add_argument('-b', '--board', required=False, help='specify supported board name', metavar='board')
-    parser_server.add_argument('-i', '--id', required=False, type=int, default=-1,
-                               help='specify id of the board returned by lsftdi', metavar='id')
-    parser_server.add_argument('-p', '--port', required=True, type=int, help='specify the port to open', metavar='port')
+    parser_server = subparser.add_parser("server", help="server utility")
+    parser_server.add_argument(
+        "-b",
+        "--board",
+        required=False,
+        help="specify supported board name",
+        metavar="board",
+    )
+    parser_server.add_argument(
+        "-i",
+        "--id",
+        required=False,
+        type=int,
+        default=-1,
+        help="specify id of the board returned by lsftdi",
+        metavar="id",
+    )
+    parser_server.add_argument(
+        "-p",
+        "--port",
+        required=True,
+        type=int,
+        help="specify the port to open",
+        metavar="port",
+    )
 
     args = parser.parse_args()
     logging.debug(args)
 
     if not args.command:
-        print('*************************************************************************')
-        print('Please specify arguments. You can refer to help with command main.py -h.')
-        print('*************************************************************************')
+        print(
+            "*************************************************************************"
+        )
+        print(
+            "Please specify arguments. You can refer to help with command main.py -h."
+        )
+        print(
+            "*************************************************************************"
+        )
 
-    if args.command == 'lsftdi':
+    if args.command == "lsftdi":
         board = drv_ftdi.Board(args)
         board.eeprom.show_devices()
 
-    if args.command == 'lsboard':
+    if args.command == "lsboard":
         list_supported_board()
 
-    if args.command == 'lsgpio':
+    if args.command == "lsgpio":
         board = drv_ftdi.Board(args)
         board.lsgpio()
 
-    if args.command == 'lsbootmode':
+    if args.command == "lsbootmode":
         board = drv_ftdi.Board(args)
         board.lsbootmode()
 
-    if args.command == 'reset':
+    if args.command == "reset":
         board = drv_ftdi.Board(args)
         if not args.boot_mode or found_bootm(args.boot_mode, board):
             board.reset(args.boot_mode, args.delay)
         else:
-            logging.warning('Please enter valid boot mode')
+            logging.warning("Please enter valid boot mode")
 
-    if args.command == 'set_gpio':
+    if args.command == "set_gpio":
         board = drv_ftdi.Board(args)
         foundgpio = found_gpio(args.gpio_name, board)
         if foundgpio:
@@ -176,34 +361,35 @@ def main():
             if foundvalue >= 0:
                 board.set_gpio(foundgpio, foundvalue)
             else:
-                logging.warning('Please enter valid GPIO value')
+                logging.warning("Please enter valid GPIO value")
         else:
-            logging.warning('Please enter valid GPIO name')
+            logging.warning("Please enter valid GPIO name")
 
-    if args.command == 'monitor':
+    if args.command == "monitor":
         splash_screen = gui.SplashScreen()
         board = drv_ftdi.Board(args)
-        if (args.mode == 'tui') or (args.mode is None):
+        if (args.mode == "tui") or (args.mode is None):
             tui.run_ui(board, args)
-        elif args.mode == 'gui':
+        elif args.mode == "gui":
             gui.run_ui(board, args)
         else:
-            logging.warning('Please enter valid monitor mode')
+            logging.warning("Please enter valid monitor mode")
 
-    if args.command == 'resume':
-        print('Not implemented yet.')
+    if args.command == "resume":
+        print("Not implemented yet.")
 
-    if args.command == 'eeprom':
+    if args.command == "eeprom":
         board = drv_ftdi.Board(args)
         if args.mode:
-            if args.mode == 'read' or args.mode == 'r':
+            if args.mode == "read" or args.mode == "r":
                 board.board_eeprom_read()
-            elif args.mode == 'write' or args.mode == 'w':
+            elif args.mode == "write" or args.mode == "w":
                 board.board_eeprom_write()
 
-    if args.command == 'server':
+    if args.command == "server":
         board = drv_ftdi.Board(args)
         server.run_server(board, args.port)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
