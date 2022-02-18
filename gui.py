@@ -160,8 +160,9 @@ class ProcessData(QtCore.QThread):
                 ),
                 None,
             )
-            rail["voltage"].pop(0)
-            rail["current"].pop(0)
+            if len(rail["voltage"]) > 1:
+                rail["voltage"].pop(0)
+                rail["current"].pop(0)
             local_rail["voltage"] = np.append(
                 local_rail["voltage"],
                 np.array(rail["voltage"], dtype=np.float16),
@@ -640,9 +641,14 @@ class GUI(QtWidgets.QMainWindow):
         self.mouse_pointer_window.update_data(time_coor)
 
     def update_instant_temp(self):
-        self.temp_label.setText(
-            " Current board temperature: " + str(self.temperature_buf[-1][1]) + "°C "
-        )
+        try:
+            self.temp_label.setText(
+                " Current board temperature: "
+                + str(self.temperature_buf[-1][1])
+                + "°C "
+            )
+        except IndexError:
+            pass
 
     def single_trace_update(self, index, type, trace_main, trace_zoom):
         if type == "temp":
@@ -723,7 +729,7 @@ class GUI(QtWidgets.QMainWindow):
                 ),
                 None,
             )
-            if rail is None:
+            if rail is None or len(rail["voltage"]) <= 1:
                 return
             voltage = rail["voltage"][1:]
             current = rail["current"][1:]

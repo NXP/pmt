@@ -884,7 +884,7 @@ class Board:
     def process_temperature(self):
         global T_START
         while not FLAG_UI_STOP:
-            while FLAG_PAUSE_CAPTURE:
+            while FLAG_PAUSE_CAPTURE or self.ftdic is None:
                 time.sleep(0.2)
             FTDI_LOCK.acquire()
             out = self.get_temperature(self.temperature_sensor)
