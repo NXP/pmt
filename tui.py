@@ -193,8 +193,9 @@ def run_ui(board, args):
                     ),
                     None,
                 )
-                rail["voltage"].pop(0)
-                rail["current"].pop(0)
+                if len(rail["voltage"]) > 1:
+                    rail["voltage"].pop(0)
+                    rail["current"].pop(0)
                 local_rail["voltage"] = np.append(
                     local_rail["voltage"],
                     np.array(rail["voltage"], dtype=np.float16),
