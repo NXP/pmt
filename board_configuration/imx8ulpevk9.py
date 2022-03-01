@@ -151,28 +151,34 @@ power_groups = [
 
 mapping_gpio_i2c = [
     {
-        "name": "FT_BOOT_MODE",
+        "name": "FT_BT_CFG",
         "ftdi": [1, 0xF0, 0x10],
-        "pca6416": [0x20, 0, 0xFF],
-        "default": 0x40,
+        "pca6416": [0x20, 0, 0x3F],
+        "default": 0,
     },
     {
-        "name": "FT_REMOTE_EN",
+        "name": "BOOT_MODE",
+        "ftdi": [1, 0xF0, 0x10],
+        "pca6416": [0x20, 0, 0xC0],
+        "default": 0x30,
+    },
+    {
+        "name": "REMOTE_EN",
         "ftdi": [1, 0xF0, 0x10],
         "pca6416": [0x20, 1, 0x01],
-        "default": 0x51,
+        "default": 0x41,
     },
     {
-        "name": "FT_SYS_RST",
+        "name": "RESET",
         "ftdi": [1, 0xF0, 0x10],
         "pca6416": [0x20, 1, 0x02],
-        "default": 0x20,
+        "default": 0x10,
     },
     {
         "name": "FT_ONOFF",
         "ftdi": [1, 0xF0, 0x10],
         "pca6416": [0x20, 1, 0x04],
-        "default": 0x30,
+        "default": 0x20,
     },
     {
         "name": "RESET0_B_BUFFER",
@@ -304,7 +310,7 @@ mapping_gpio_i2c = [
 
 mapping_gpio = [
     {"name": "FTB_INT_B", "ftdi": [1, 0x08], "default": 0x00},
-    {"name": "FTB_RESET_B", "ftdi": [1, 0x10], "default": 0x11},
+    {"name": "FTB_RESET_B", "ftdi": [1, 0x10], "default": 0x00},
 ]
 
 boot_modes = {
