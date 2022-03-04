@@ -1093,8 +1093,8 @@ class GUI(QtWidgets.QMainWindow):
                                 * rail["voltage"][1:array_size, 1]
                             )
                 if self.b.power_groups:
-                    power_group = np.array([[0, 0]], dtype=np.float16)
                     for group in self.b.power_groups:
+                        power_group = np.array([[0, 0]], dtype=np.float16)
                         headers.append(group["name"] + " power (mW)")
                         for rail_group in group["rails"]:
                             rail = next(
