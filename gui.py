@@ -1328,7 +1328,7 @@ class GUI(QtWidgets.QMainWindow):
         if self.args.load:
             self.setWindowTitle("Power Measurement Tool Offline")
             print("Reading %s file..." % self.args.load)
-            if self.args.load.split(".")[1] == "csv":
+            if self.args.load.split(".")[-1] == "csv":
                 with open(self.args.load, mode="r") as csv_file:
                     csv_reader = csv.reader(csv_file, delimiter=",")
                     self.b.rails_to_display = []
@@ -1412,7 +1412,7 @@ class GUI(QtWidgets.QMainWindow):
                                     [int(float(row[0])), int(float(row[-1]))]
                                 )
 
-            elif self.args.load.split(".")[1] == "pmt":
+            elif self.args.load.split(".")[-1] == "pmt":
                 with open(self.args.load, mode="rb") as pkl_file:
                     self.rail_buf = pickle.load(pkl_file)
                     self.b.rails_to_display = []
