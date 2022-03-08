@@ -29,6 +29,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import datetime
+import netifaces
 import threading
 import copy
 import socket
@@ -110,6 +111,15 @@ def run_server(board, port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, port))
         s.listen(10)
+        try:
+            server_ip = netifaces.ifaddresses("wlp2s0")[netifaces.AF_INET][0]["addr"]
+        except ValueError:
+            server_ip = "Not found"
+        print(
+            "\n -- Please connect client machine to server IP address: "
+            + server_ip
+            + " --"
+        )
         while True:
             try:
                 try:

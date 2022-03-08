@@ -13,6 +13,7 @@ This program runs with python3 under Linux and Windows.
 The following packages must be installed for the tool to start:
  - pylibftdi
  - numpy
+ - netifaces
  - pyqtgraph
  - pyqt5
  - pyftdi
@@ -29,6 +30,7 @@ The installation of all dependencies can be done by:
 The following packages must be installed for the tool to start:
 - windows-curses
 - ftd2xx
+- netifaces
 - numpy
 - pyqtgraph
 - pyqt5
