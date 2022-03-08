@@ -548,7 +548,6 @@ class GUI(QtWidgets.QMainWindow):
         self.list_rails_label = []
         self.list_groups_label = []
         self.list_temperature_label = []
-        self.list_menu = []
         self.list_switch_res = []
         self.list_color_rails = []
         self.list_color_groups = []
@@ -1622,15 +1621,15 @@ class GUI(QtWidgets.QMainWindow):
             self.zoom_graph.addItem(self.list_power_plot_zoom[i])
 
             self.list_rails_label.append(QtGui.QPushButton(rail["name"]))
-            self.list_menu.append(QtGui.QMenu())
             if not self.args.load:
                 if rail["rsense"][0] == rail["rsense"][1]:
-                    self.list_switch_res.append(QtGui.QLabel("X"))
+                    res_but = QtGui.QPushButton("X")
+                    res_but.setEnabled(False)
+                    self.list_switch_res.append(res_but)
                 else:
-                    self.switch = self.list_menu[i].addAction("Switch resistance")
-                    self.list_rails_label[i].setMenu(self.list_menu[i])
-                    self.list_switch_res.append(QtGui.QLabel("H"))
-                    self.switch.triggered.connect(
+                    res_but = QtGui.QPushButton("H")
+                    self.list_switch_res.append(res_but)
+                    res_but.clicked.connect(
                         lambda init, i=i: self.switch_res_changed(i)
                     )
                 self.button_lay.addWidget(self.list_switch_res[i], i + 1, 5)
