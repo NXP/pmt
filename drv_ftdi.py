@@ -533,7 +533,7 @@ class Board:
             if out < 0:
                 print("Rebooting ...")
                 break
-            if gpio.get("BOOT_MODE"):
+            if gpio.get("name") == "BOOT_MODE":
                 if mode:
                     val = self.boot_modes.get(mode)
                     self.set_gpio(gpio, val)
