@@ -1004,6 +1004,11 @@ class GUI(QtWidgets.QMainWindow):
         for but in self.list_rails_c:
             but.setChecked(current_state)
 
+    def hide_all_single_plot(self, index):
+        self.list_rails_p[index].setChecked(False)
+        self.list_rails_v[index].setChecked(False)
+        self.list_rails_c[index].setChecked(False)
+
     def change_color(self, index):
         """updates the color of the selected rail"""
         COLORS[index] = self.list_color_rails[index].color().name()
@@ -1620,7 +1625,15 @@ class GUI(QtWidgets.QMainWindow):
             self.global_graph.addItem(self.list_power_plot_main[i])
             self.zoom_graph.addItem(self.list_power_plot_zoom[i])
 
-            self.list_rails_label.append(QtGui.QPushButton(rail["name"]))
+            but_name = QtGui.QPushButton(rail["name"])
+            menu = QtGui.QMenu()
+            hide_action = menu.addAction("Hide all plots")
+            hide_action.triggered.connect(
+                lambda init, i=i: self.hide_all_single_plot(i)
+            )
+            but_name.setMenu(menu)
+            self.list_rails_label.append(but_name)
+
             if not self.args.load:
                 if rail["rsense"][0] == rail["rsense"][1]:
                     res_but = QtGui.QPushButton("X")
