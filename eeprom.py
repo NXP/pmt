@@ -140,6 +140,11 @@ class FTDIEeprom:
                 )
             elif common_func.OS == "Windows":
                 out = self.device.eeUARead(3)
+                if len(out) == 0:
+                    print(
+                        "\n!! EEPROM content is empty, please flash it with EEPROM Programmer Tool !!\n"
+                    )
+                    return "Unknown", "Unknown"
                 soc = hex(((out[0] & 0xFC) >> 2) | ((out[1] - 1) << 6))
                 rev = hex(out[2])
                 return eeprom_mapping_table.INFOS[board_id_index]["datas"].get(
@@ -206,6 +211,11 @@ class FTDIEeprom:
             ret_data = self.device.read_eeprom(addr=0x1A, length=9)
         elif common_func.OS == "Windows":
             ret_data = self.device.eeUARead(9)
+        if len(ret_data) == 0:
+            print(
+                "\n!! EEPROM content is empty, please flash it with EEPROM PRogrammer Tool !!\n"
+            )
+            return
         self.eeprom_info["CONFIG_FLAG"] = hex(ret_data[0] & 0x01)
         self.eeprom_info["BOARD_ID"] = hex(
             ((ret_data[0] & 0xFC) >> 2) | ((ret_data[1] - 1) << 6)
