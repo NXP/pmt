@@ -40,8 +40,7 @@ The following packages must be installed for the tool to start:
 The installation of all dependencies can be done by:
  - pip3 install -r requirements_windows.txt
 
-Install the FTDI D2XX library available here: https://www.ftdichip.com/Drivers/D2XX.htm
-Copy the files in the PMT directory.
+Install the FTDI D2XX Drivers available here: https://www.ftdichip.com/Drivers/D2XX.htm
 
 For Windows, please use command **"python"** instead of **"python3"**.
 ______________________________________________________________________________________________
