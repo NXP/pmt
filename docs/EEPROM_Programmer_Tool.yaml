@@ -29,6 +29,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 # Complete BOARD_ID with following options:
+# -----   MANDATORY   ------
 #    - NXP i.MX8DXL EVK Board
 #    - NXP i.MX8DXL EVK DDR3 Board
 #    - NXP i.MX8MP EVK Board
@@ -43,6 +44,7 @@
 BOARD_ID: NXP i.MX8MP EVK PWR Board
 
 # Complete BOARD_REV with revision of the board:
+# -----   MANDATORY   ------
 #    - A0 to A4
 #    - B0 to B4
 #    - C0 to C4
@@ -73,6 +75,8 @@ SOC_REV: A1
 #    - PPF7100BMMA2ES
 #    - PCA9460AUK
 #    - PCA9450AAHN
+#    - PCA9450BHN
+#    - "NOT FOUND" if no information
 
 PMIC_ID: PCA9450CHN
 
@@ -85,11 +89,11 @@ PMIC_ID: PCA9450CHN
 PMIC_REV: NOT FOUND
 
 # Complete NBR_PWR_RAILS with the number of rails supported by board:
-#    - 0 to 30
+#    - 0 to 254
 
 NBR_PWR_RAILS: 27
 
 # Complete BOARD_SN with the number of rails supported by board:
-#    - 0 to 30
+#    - 0 to 65278
 
 BOARD_SN: 1

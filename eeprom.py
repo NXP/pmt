@@ -30,6 +30,7 @@
 
 import oyaml as yaml
 import sys
+import time
 from collections import OrderedDict
 import eeprom_mapping_table
 import common_function as common_func
@@ -112,31 +113,48 @@ class FTDIEeprom:
         with open(self.args.file, "r") as file:
             datas = yaml.safe_load(file)
             for item, value in datas.items():
-                for cpt in eeprom_mapping_table.INFOS:
-                    if cpt["name"] == item:
-                        code = next(
-                            (
-                                key
-                                for key, val in cpt["datas"].items()
-                                if val == str(value)
-                            ),
-                            "0x7f",
-                        )
-                        self.file_info.append([item, code])
-                        break
+                if any(i in item for i in ["BOARD_ID", "SOC_ID", "PMIC_ID"]):
+                    for cpt in eeprom_mapping_table.INFOS:
+                        if cpt["name"] == item:
+
+                            code = next(
+                                (
+                                    key
+                                    for key, val in cpt["datas"].items()
+                                    if val == str(value)
+                                ),
+                                "0x7f",
+                            )
+                            self.file_info.append([item, code])
+                            break
+                else:
+                    if value == "NOT FOUND":
+                        self.file_info.append([item, "0x7f"])
+                        continue
+                    if "BOARD_SN" in item or "NBR_PWR_RAILS" in item:
+                        self.file_info.append([item, hex(value + 1)])
+                    else:
+                        rev_l = ord(value[0]) - ord("A") + 1
+                        rev_n = int(value[1]) + 1
+                        rev = hex((rev_l << 4) + rev_n)
+                        self.file_info.append([item, rev])
 
     def read_eeprom_board_id_rev(self, pins=None):
         board_id_index = 1
-        board_rev_index = 2
         if self.type == 0:
             if common_func.OS == "Linux":
                 out = self.device.read_eeprom(addr=0x1A, length=3)
                 soc = hex(((out[0] & 0xFC) >> 2) | ((out[1] - 1) << 6))
-                rev = hex(out[2])
-                return eeprom_mapping_table.INFOS[board_id_index]["datas"].get(
-                    soc, "Unknown"
-                ), eeprom_mapping_table.INFOS[board_rev_index]["datas"].get(
-                    rev, "Unknown"
+                rev = (
+                    chr((out[2] >> 4) + ord("A") - 1) + str((out[2] & 0xF) - 1)
+                    if (out[2] != 0x7F and out[2] != 0xFF)
+                    else "Unknown"
+                )
+                return (
+                    eeprom_mapping_table.INFOS[board_id_index]["datas"].get(
+                        soc, "Unknown"
+                    ),
+                    rev,
                 )
             elif common_func.OS == "Windows":
                 out = self.device.eeUARead(3)
@@ -146,29 +164,42 @@ class FTDIEeprom:
                     )
                     return "Unknown", "Unknown"
                 soc = hex(((out[0] & 0xFC) >> 2) | ((out[1] - 1) << 6))
-                rev = hex(out[2])
-                return eeprom_mapping_table.INFOS[board_id_index]["datas"].get(
-                    soc, "Unknown"
-                ), eeprom_mapping_table.INFOS[board_rev_index]["datas"].get(
-                    rev, "Unknown"
+                rev = (
+                    chr((out[2] >> 4) + ord("A") - 1) + str((out[2] & 0xF) - 1)
+                    if (out[2] != 0x7F and out[2] != 0xFF)
+                    else "Unknown"
+                )
+                return (
+                    eeprom_mapping_table.INFOS[board_id_index]["datas"].get(
+                        soc, "Unknown"
+                    ),
+                    rev,
                 )
         else:
             out = self.read_eeprom_i2c(pins)
             soc = hex(((out[0][0] & 0xFC) >> 2) | ((out[1][0] - 1) << 6))
-            rev = hex(out[2][0])
-            return eeprom_mapping_table.INFOS[board_id_index]["datas"].get(
-                soc, "Unknown"
-            ), eeprom_mapping_table.INFOS[board_rev_index]["datas"].get(rev, "Unknown")
+            rev = (
+                chr((out[2][0] >> 4) + ord("A") - 1) + str((out[2][0] & 0xF) - 1)
+                if (out[2] != 0x7F and out[2] != 0xFF)
+                else "Unknown"
+            )
+            return (
+                eeprom_mapping_table.INFOS[board_id_index]["datas"].get(soc, "Unknown"),
+                rev,
+            )
 
     def display_eeprom_info(self):
         i = 0
         for info, data in self.eeprom_info.items():
-            print(
-                info
-                + ": "
-                + eeprom_mapping_table.INFOS[i]["datas"].get(data, "Unknown")
-            )
-            i += 1
+            if any(i in info for i in ["BOARD_ID", "SOC_ID", "PMIC_ID", "CONFIG_FLAG"]):
+                print(
+                    info
+                    + ": "
+                    + eeprom_mapping_table.INFOS[i]["datas"].get(data, "Unknown")
+                )
+                i += 1
+            else:
+                print(f"{info}: {data}")
 
     def read(self, id):
         dev_list = self.list_eeprom_devices()
@@ -208,25 +239,43 @@ class FTDIEeprom:
 
     def read_eeprom_serial(self):
         if common_func.OS == "Linux":
-            ret_data = self.device.read_eeprom(addr=0x1A, length=9)
+            ret_data = self.device.read_eeprom(addr=0x1A, length=10)
         elif common_func.OS == "Windows":
-            ret_data = self.device.eeUARead(9)
+            ret_data = self.device.eeUARead(10)
         if len(ret_data) == 0:
             print(
-                "\n!! EEPROM content is empty, please flash it with EEPROM PRogrammer Tool !!\n"
+                "\n!! EEPROM content is empty, please flash it with EEPROM Programmer Tool !!\n"
             )
             return
         self.eeprom_info["CONFIG_FLAG"] = hex(ret_data[0] & 0x01)
         self.eeprom_info["BOARD_ID"] = hex(
             ((ret_data[0] & 0xFC) >> 2) | ((ret_data[1] - 1) << 6)
         )
-        self.eeprom_info["BOARD_REV"] = hex(ret_data[2])
+        self.eeprom_info["BOARD_REV"] = (
+            chr((ret_data[2] >> 4) + ord("A") - 1) + str((ret_data[2] & 0xF) - 1)
+            if (ret_data[2] != 0x7F and ret_data[2] != 0xFF)
+            else "Unknown"
+        )
         self.eeprom_info["SOC_ID"] = hex(ret_data[3])
-        self.eeprom_info["SOC_REV"] = hex(ret_data[4])
+        self.eeprom_info["SOC_REV"] = (
+            chr((ret_data[4] >> 4) + ord("A") - 1) + str((ret_data[4] & 0xF) - 1)
+            if (ret_data[4] != 0x7F and ret_data[4] != 0xFF)
+            else "Unknown"
+        )
         self.eeprom_info["PMIC_ID"] = hex(ret_data[5])
-        self.eeprom_info["PMIC_REV"] = hex(ret_data[6])
-        self.eeprom_info["NBR_PWR_RAILS"] = hex(ret_data[7])
-        self.eeprom_info["BOARD_SN"] = hex(ret_data[8])
+        self.eeprom_info["PMIC_REV"] = (
+            chr((ret_data[6] >> 4) + ord("A") - 1) + str((ret_data[6] & 0xF) - 1)
+            if (ret_data[6] != 0x7F and ret_data[6] != 0xFF)
+            else "Unknown"
+        )
+        self.eeprom_info["NBR_PWR_RAILS"] = (
+            int(ret_data[7] - 1) if (ret_data[7] <= 254) else "Unknown"
+        )
+        self.eeprom_info["BOARD_SN"] = (
+            int(((ret_data[9] - 1) << 8) + ((ret_data[8] - 1)))
+            if ((((ret_data[9] - 1) << 8) + ((ret_data[8] - 1))) >= 1)
+            else "Unknown"
+        )
         self.display_eeprom_info()
 
     def write(self, id):
@@ -264,63 +313,62 @@ class FTDIEeprom:
     def write_eeprom_serial(self):
         infos = []
         for info in self.file_info:
+            info[1] = int(info[1], 16)
             if info[0] == "BOARD_ID":
-                info[1] = int(info[1], 16)
                 data1 = info[1] << 2 if info[1] <= 40 else (info[1] << 2) & 0xFF
                 data1 |= 0x01
                 data2 = 1 if info[1] <= 40 else (((info[1] << 2) & 0xFF00) >> 8) + 1
                 infos.append(data1)
                 infos.append(data2)
+            elif info[0] == "BOARD_SN":
+                data1 = info[1] & 0xFF
+                data2 = (info[1] >> 8) + 1
+                infos.append(data1)
+                infos.append(data2)
             else:
-                data = int(info[1], 16)
-                infos.append(data)
+                infos.append(info[1])
         if common_func.OS == "Linux":
             self.device.write_eeprom(int("0x1a", 16), infos, dry_run=False)
         elif common_func.OS == "Windows":
             self.device.eeUAWrite(bytes(infos))
 
-    def write_eeprom_i2c(self, address, data, ep_num):
-        add_write = (common.board_eeprom_i2c[ep_num]["at24cxx"]["addr"] << 1) + 0
-        pins = common.board_eeprom_i2c[ep_num]
-        common_func.ftdi_i2c_start(self.device, pins)
-        common_func.ftdi_i2c_write(self.device, pins, add_write)
-        if common.board_eeprom_i2c[ep_num]["at24cxx"]["type"]:
-            common_func.ftdi_i2c_write(self.device, pins, address >> 8)
-            common_func.ftdi_i2c_write(self.device, pins, address & 0xFF)
-        else:
-            common_func.ftdi_i2c_write(self.device, pins, address)
-        common_func.ftdi_i2c_write(self.device, pins, data)
-        common_func.ftdi_i2c_stop(self.device, pins)
-
     def write_eeprom_page_i2c(self, ep_num):
         infos = []
         address = 0
         for info in self.file_info:
+            info[1] = int(info[1], 16)
             if info[0] == "BOARD_ID":
-                info[1] = int(info[1], 16)
                 data1 = info[1] << 2 if info[1] <= 40 else (info[1] << 2) & 0xFF
                 data1 |= 0x01
                 data2 = 1 if info[1] <= 40 else (((info[1] << 2) & 0xFF00) >> 8) + 1
                 infos.append(data1)
                 infos.append(data2)
+            elif info[0] == "BOARD_SN":
+                data1 = info[1] & 0xFF
+                data2 = (info[1] >> 8) + 1
+                infos.append(data1)
+                infos.append(data2)
             else:
-                data = int(info[1], 16)
-                infos.append(data)
+                infos.append(info[1])
         add_write = (common.board_eeprom_i2c[ep_num]["at24cxx"]["addr"] << 1) + 0
         pins = common.board_eeprom_i2c[ep_num]
         common_func.ftdi_i2c_init(self.device, pins)
         common_func.ftdi_i2c_start(self.device, pins)
         common_func.ftdi_i2c_write(self.device, pins, add_write)
         if common.board_eeprom_i2c[ep_num]["at24cxx"]["type"]:
-            common_func.ftdi_i2c_write(self.device, pins, address >> 8)
-            common_func.ftdi_i2c_write(self.device, pins, address & 0xFF)
-        else:
-            common_func.ftdi_i2c_write(self.device, pins, address)
-        for ind in range(0, len(infos) - 1):
+            common_func.ftdi_i2c_write(self.device, pins, 0)
+        common_func.ftdi_i2c_write(self.device, pins, 0x1A)
+        for ind in range(0, len(infos)):
+            if ind != 0 and ((0x1A + ind) % 8 == 0):
+                common_func.ftdi_i2c_stop(self.device, pins)
+                time.sleep(0.01)
+                common_func.ftdi_i2c_start(self.device, pins)
+                common_func.ftdi_i2c_write(self.device, pins, add_write)
+                if common.board_eeprom_i2c[ep_num]["at24cxx"]["type"]:
+                    common_func.ftdi_i2c_write(self.device, pins, 0)
+                common_func.ftdi_i2c_write(self.device, pins, 0x1A + ind)
             common_func.ftdi_i2c_write(self.device, pins, infos[ind])
         common_func.ftdi_i2c_stop(self.device, pins)
-        common_func.time.sleep(0.3)
-        self.write_eeprom_i2c(8, infos[-1], ep_num)
 
     def read_eeprom_i2c(self, pins):
         out = []
@@ -330,10 +378,8 @@ class FTDIEeprom:
         common_func.ftdi_i2c_start(self.device, pins)
         common_func.ftdi_i2c_write(self.device, pins, add_write)
         if pins["at24cxx"]["type"]:
-            common_func.ftdi_i2c_write(self.device, pins, 0 >> 8)
-            common_func.ftdi_i2c_write(self.device, pins, 0 & 0xFF)
-        else:
             common_func.ftdi_i2c_write(self.device, pins, 0)
+        common_func.ftdi_i2c_write(self.device, pins, 0x1A)
         common_func.ftdi_i2c_start(self.device, pins)
         common_func.ftdi_i2c_write(self.device, pins, add_read)
         for i in range(2):
@@ -353,15 +399,14 @@ class FTDIEeprom:
         common_func.ftdi_i2c_start(self.device, pins)
         common_func.ftdi_i2c_write(self.device, pins, add_write)
         if common.board_eeprom_i2c[ep_num]["at24cxx"]["type"]:
-            common_func.ftdi_i2c_write(self.device, pins, address >> 8)
-            common_func.ftdi_i2c_write(self.device, pins, address & 0xFF)
-        else:
-            common_func.ftdi_i2c_write(self.device, pins, address)
+            common_func.ftdi_i2c_write(self.device, pins, 0)
+        common_func.ftdi_i2c_write(self.device, pins, 0x1A)
         common_func.ftdi_i2c_start(self.device, pins)
         common_func.ftdi_i2c_write(self.device, pins, add_read)
-        while i < 10:
+        while i < 9:
             ret_data.append(common_func.ftdi_i2c_read(self.device, pins, 0))
             i += 1
+        ret_data.append(common_func.ftdi_i2c_read(self.device, pins, 1))
         common_func.ftdi_i2c_stop(self.device, pins)
         if ret_data[0][0] == 0:
             ret_data.pop(0)
@@ -371,11 +416,29 @@ class FTDIEeprom:
         self.eeprom_info["BOARD_ID"] = hex(
             ((ret_data[0][0] & 0xFC) >> 2) | ((ret_data[1][0] - 1) << 6)
         )
-        self.eeprom_info["BOARD_REV"] = hex(ret_data[2][0])
+        self.eeprom_info["BOARD_REV"] = (
+            chr((ret_data[2][0] >> 4) + ord("A") - 1) + str((ret_data[2][0] & 0xF) - 1)
+            if (ret_data[2][0] != 0x7F and ret_data[2][0] != 0xFF)
+            else "Unknown"
+        )
         self.eeprom_info["SOC_ID"] = hex(ret_data[3][0])
-        self.eeprom_info["SOC_REV"] = hex(ret_data[4][0])
+        self.eeprom_info["SOC_REV"] = (
+            chr((ret_data[4][0] >> 4) + ord("A") - 1) + str((ret_data[4][0] & 0xF) - 1)
+            if (ret_data[4][0] != 0x7F and ret_data[4][0] != 0xFF)
+            else "Unknown"
+        )
         self.eeprom_info["PMIC_ID"] = hex(ret_data[5][0])
-        self.eeprom_info["PMIC_REV"] = hex(ret_data[6][0])
-        self.eeprom_info["NBR_PWR_RAILS"] = hex(ret_data[7][0])
-        self.eeprom_info["BOARD_SN"] = hex(ret_data[8][0])
+        self.eeprom_info["PMIC_REV"] = (
+            chr((ret_data[6][0] >> 4) + ord("A") - 1) + str((ret_data[6][0] & 0xF) - 1)
+            if (ret_data[6][0] != 0x7F and ret_data[6][0] != 0xFF)
+            else "Unknown"
+        )
+        self.eeprom_info["NBR_PWR_RAILS"] = (
+            int(ret_data[7][0] - 1) if (ret_data[7][0] <= 254) else "Unknown"
+        )
+        self.eeprom_info["BOARD_SN"] = (
+            int(((ret_data[9][0] - 1) << 8) + ((ret_data[8][0] - 1)))
+            if ((((ret_data[9][0] - 1) << 8) + ((ret_data[8][0] - 1))) >= 1)
+            else "Unknown"
+        )
         self.display_eeprom_info()
