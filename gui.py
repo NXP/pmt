@@ -719,6 +719,7 @@ class GUI(QtWidgets.QMainWindow):
         self.zoom_region.blockSignals(True)
         self.global_graph.blockSignals(True)
 
+        maxx = None
         for i, d_rail in enumerate(self.b.rails_to_display):
             rail = next(
                 (
@@ -728,6 +729,7 @@ class GUI(QtWidgets.QMainWindow):
                 ),
                 None,
             )
+            maxx = rail["voltage"][-1][0]
             if rail is None or len(rail["voltage"]) <= 1:
                 return
             voltage = rail["voltage"][1:]
@@ -748,6 +750,7 @@ class GUI(QtWidgets.QMainWindow):
                 self.list_voltage_plot_zoom[i].setData(voltage[:, 0], voltage[:, 1])
 
         for j, group in enumerate(self.groups_buf):
+            maxx = group["power"][-1][0] if maxx is None else maxx
             if self.list_groups_p[j].isChecked():
                 self.list_group_plot_main[j].setData(
                     group["power"][:, 0], group["power"][:, 1]
@@ -768,9 +771,8 @@ class GUI(QtWidgets.QMainWindow):
 
         if self.timer.isActive() or self.args.load:
             self.global_graph.autoRange(padding=0)
-            x_coor, y_coor = self.global_graph_pi.viewRange()
-            minx = x_coor[1] - 2 if x_coor[1] >= 2 else 0
-            maxx = x_coor[1]
+            self.global_graph.setXRange(0, maxx, padding=0)
+            minx = maxx - 2 if maxx >= 2 else 0
             self.zoom_region.setRegion((minx, maxx))
             self.zoom_graph.enableAutoRange("y")
             self.zoom_graph.setXRange(minx, maxx, padding=0)
