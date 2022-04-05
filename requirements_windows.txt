@@ -1,8 +1,0 @@
-windows-curses
-ftd2xx
-netifaces
-numpy
-pyqtgraph
-pyqt5
-pyftdi
-oyaml

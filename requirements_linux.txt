@@ -1,6 +1,0 @@
-pylibftdi
-netifaces
-numpy
-pyqtgraph
-pyftdi
-oyaml

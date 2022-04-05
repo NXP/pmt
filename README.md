@@ -20,7 +20,7 @@ The following packages must be installed for the tool to start:
  - oyaml
 
 The installation of all dependencies can be done by:
- - pip3 install -r requirements_linux.txt
+ - pip3 install -r requirements.txt
  - sudo apt install python3-pyqt5 libftdi1-dev
 
 ### Windows:
@@ -38,7 +38,7 @@ The following packages must be installed for the tool to start:
 - oyaml
 
 The installation of all dependencies can be done by:
- - pip3 install -r requirements_windows.txt
+ - pip3 install -r requirements.txt
 
 Install the FTDI D2XX Drivers available here: https://www.ftdichip.com/Drivers/D2XX.htm
 
