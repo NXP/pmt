@@ -152,7 +152,7 @@ power_groups = [
 mapping_gpio_i2c = [
     {
         "name": "FT_BT_CFG",
-        "ftdi": [1, 0xF0, 0x10],
+        "ftdi": [1, 0xF0, 0xF0],
         "pca6416": [0x20, 0, 0x3F],
         "default": 0,
     },
