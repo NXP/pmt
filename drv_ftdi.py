@@ -262,6 +262,7 @@ class Board:
             "NXP i.MX8ULP EVK9 Board": "imx8ulpevk9",
             "NXP VAL_BOARD_1 Board": "val_board_1",
             "NXP VAL_BOARD_2 Board": "val_board_2",
+            "NXP i.MX93 EVK Board": "imx93evk11",
         }
         boards_infos = []
         dev_list = self.eeprom.list_eeprom_devices()
@@ -280,6 +281,7 @@ class Board:
                             "val_board_1",
                             "val_board_2",
                             "imx8ulpevk9",
+                            "imx93evk11",
                         ]:  # temporary hack to be align with bcu (don't specify board revision for these boards)
                             board_id = board_id + board_rev.lower()
                         boards_infos.append({"name": board_id, "loc_id": ind})
@@ -296,6 +298,7 @@ class Board:
                         "val_board_1",
                         "val_board_2",
                         "imx8ulpevk9",
+                        "imx93evk11",
                     ]:  # temporary hack to be align with bcu (don't specify board revision for these boards)
                         board_id = board_id + board_rev.lower()
                     boards_infos.append({"name": board_id, "loc_id": ind})
@@ -342,11 +345,10 @@ class Board:
         add_write = (pins["pca6416"][0] << 1) + 0
         add_read = (pins["pca6416"][0] << 1) + 1
         conf_cmd = pins["pca6416"][1]
-        conf_cmd = (
-            conf_cmd + 0x02
-            if (self.name != "val_board_1" and self.name != "val_board_2")
-            else conf_cmd + 0x04
-        )
+        if self.name == "val_board_1" or self.name == "val_board_2":
+            conf_cmd += 0x04
+        else:
+            conf_cmd += 0x02
         common_func.ftdi_i2c_start(self.ftdic, pins)
         status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
         if status != 0:
@@ -383,11 +385,10 @@ class Board:
         add_write = (pins["pca6416"][0] << 1) + 0
         add_read = (pins["pca6416"][0] << 1) + 1
         conf_cmd = pins["pca6416"][1]
-        conf_cmd = (
-            conf_cmd + 0x06
-            if (self.name != "val_board_1" and self.name != "val_board_2")
-            else conf_cmd + 0x0C
-        )
+        if self.name == "val_board_1" or self.name == "val_board_2":
+            conf_cmd += 0x0C
+        else:
+            conf_cmd += 0x06
         common_func.ftdi_i2c_start(self.ftdic, pins)
         status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
         if status != 0:
@@ -422,11 +423,10 @@ class Board:
         add_write = (pins["pca6416"][0] << 1) + 0
         add_read = (pins["pca6416"][0] << 1) + 1
         conf_cmd = pins["pca6416"][1]
-        conf_cmd = (
-            conf_cmd + 0x02
-            if (self.name != "val_board_1" and self.name != "val_board_2")
-            else conf_cmd + 0x04
-        )
+        if self.name == "val_board_1" or self.name == "val_board_2":
+            conf_cmd += 0x04
+        else:
+            conf_cmd += 0x02
         common_func.ftdi_i2c_start(self.ftdic, pins)
         status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
         if status != 0:
@@ -441,6 +441,101 @@ class Board:
         current_out = common_func.ftdi_i2c_read(self.ftdic, pins, 1)
         common_func.ftdi_i2c_stop(self.ftdic, pins)
         return current_out[0] & pins["pca6416"][2]
+
+    def adp5585_write(self, pins, gpio_value):
+        """I2C communication for writing new value to the ADP"""
+        output_data = []
+        logging.debug("adp_write")
+        add_write = (pins["adp5585"][0] << 1) + 0
+        add_read = (pins["adp5585"][0] << 1) + 1
+        conf_cmd = pins["adp5585"][1]
+        conf_cmd += 0x23
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
+        if status != 0:
+            return status
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, conf_cmd)
+        if status != 0:
+            return status
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, add_read)
+        if status != 0:
+            return status
+        current_config = common_func.ftdi_i2c_read(self.ftdic, pins, 1)
+        logging.debug("Current ADP GPIO configuration: " + hex(current_config[0]))
+        common_func.ftdi_i2c_stop(self.ftdic, pins)
+        output_data = (current_config[0] & ~pins["adp5585"][2]) | (
+            gpio_value & pins["adp5585"][2]
+        )
+        logging.debug("Modified ADP GPIO configuration: " + hex(output_data))
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
+        if status != 0:
+            return status
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, conf_cmd)
+        if status != 0:
+            return status
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, output_data)
+        if status != 0:
+            return status
+        common_func.ftdi_i2c_stop(self.ftdic, pins)
+
+    def adp5585_set_direction(self, pins):
+        """I2C communication for defining ADP pins as I/O"""
+        logging.debug("adp5585_set_direction")
+        add_write = (pins["adp5585"][0] << 1) + 0
+        add_read = (pins["adp5585"][0] << 1) + 1
+        conf_cmd = pins["adp5585"][1]
+        conf_cmd += 0x27
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
+        if status != 0:
+            return status
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, conf_cmd)
+        if status != 0:
+            return status
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, add_read)
+        if status != 0:
+            return status
+        current_confg = common_func.ftdi_i2c_read(self.ftdic, pins, 1)
+        logging.debug("Current ADP pins direction: " + hex(current_confg[0]))
+        common_func.ftdi_i2c_stop(self.ftdic, pins)
+        intput_bitmask = (~(pins["adp5585"][2])) & current_confg[0]
+        logging.debug("Input ADP  bitmask pins direction: " + hex(intput_bitmask))
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
+        if status != 0:
+            return status
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, conf_cmd)
+        if status != 0:
+            return status
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, intput_bitmask)
+        if status != 0:
+            return status
+        common_func.ftdi_i2c_stop(self.ftdic, pins)
+
+    def adp5585_get_output(self, pins):
+        """returns the current pins configuration of the ADP"""
+        logging.debug("adp_get_output")
+        add_write = (pins["adp5585"][0] << 1) + 0
+        add_read = (pins["adp5585"][0] << 1) + 1
+        conf_cmd = pins["adp5585"][1]
+        conf_cmd += 0x23
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
+        if status != 0:
+            return status
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, conf_cmd)
+        if status != 0:
+            return status
+        common_func.ftdi_i2c_start(self.ftdic, pins)
+        status = common_func.ftdi_i2c_write(self.ftdic, pins, add_read)
+        if status != 0:
+            return status
+        current_out = common_func.ftdi_i2c_read(self.ftdic, pins, 1)
+        common_func.ftdi_i2c_stop(self.ftdic, pins)
+        return current_out[0] & pins["adp5585"][2]
 
     def ftdi_gpio_write(self, gpio_name, gpio_value):
         """writes desired value to the gpio passed in parameter"""
@@ -628,8 +723,12 @@ class Board:
         if mode == 1:
             if gpio_name.get("pca9548"):
                 self.pca9548_set_channel(gpio_name)
-            self.pca6416_set_direction(gpio_name)
-            self.pca_write(gpio_name, gpio_value)
+            if gpio_name.get("pca6416"):
+                self.pca6416_set_direction(gpio_name)
+                self.pca_write(gpio_name, gpio_value)
+            else:  # adp5585
+                self.adp5585_set_direction(gpio_name)
+                self.adp5585_write(gpio_name, gpio_value)
 
     def switch_res(self, rail, rail_num):
         """checks if switching desired resistance is authorised and return the status"""
@@ -666,21 +765,37 @@ class Board:
         if switch_res_permitted:
             FTDI_LOCK.acquire()
             self.setgpio(gpio, gpio_value * 0xFF)
-            check_value = self.pca6416_get_output(gpio)
+            if gpio.get("pca6416"):
+                check_value = self.pca6416_get_output(gpio)
+                gpio_mask = gpio["adp5585"][2]
+            else:  # adp5585
+                check_value = self.adp5585_get_output(gpio)
+                gpio_mask = gpio["adp5585"][2]
             FTDI_LOCK.release()
-            if (check_value / gpio["pca6416"][2]) != gpio_value:
+            if (check_value / gpio_mask) != gpio_value:
                 return False, switch_res_permitted
             else:
                 CURR_RSENSE[self.rails_to_display[rail_num]["name"]] = next_rsense
+                (
+                    self.rails_to_display[rail_num]["pac"][0],
+                    self.rails_to_display[rail_num]["pac"][3],
+                ) = (
+                    self.rails_to_display[rail_num]["pac"][3],
+                    self.rails_to_display[rail_num]["pac"][0],
+                )
                 if (
-                    len(self.rails_to_display[rail_num]["pac"]) > 3
-                ):  # in case of 8MP_EVK with PM rail
+                    len(self.rails_to_display[rail_num]["pac"]) >= 6
+                ):  # When shunts are not in the same PAC
                     (
-                        self.rails_to_display[rail_num]["pac"][0],
-                        self.rails_to_display[rail_num]["pac"][3],
+                        self.rails_to_display[rail_num]["pac"][1],
+                        self.rails_to_display[rail_num]["pac"][4],
+                        self.rails_to_display[rail_num]["pac"][2],
+                        self.rails_to_display[rail_num]["pac"][5],
                     ) = (
-                        self.rails_to_display[rail_num]["pac"][3],
-                        self.rails_to_display[rail_num]["pac"][0],
+                        self.rails_to_display[rail_num]["pac"][4],
+                        self.rails_to_display[rail_num]["pac"][1],
+                        self.rails_to_display[rail_num]["pac"][5],
+                        self.rails_to_display[rail_num]["pac"][2],
                     )
                 return True, switch_res_permitted
 
@@ -698,9 +813,19 @@ class Board:
             )
             init_value = rail["rsense"][2]
             self.setgpio(gpio, init_value * 0xFF)
-            while (self.pca6416_get_output(gpio) / gpio["pca6416"][2]) != init_value:
+            if gpio.get("pca6416"):
+                gpio_value = self.pca6416_get_output(gpio)
+                gpio_mask = gpio["pca6416"][2]
+            else:  # adp5585
+                gpio_value = self.adp5585_get_output(gpio)
+                gpio_mask = gpio["adp5585"][2]
+            while (gpio_value / gpio_mask) != init_value:
                 err += 1
                 self.setgpio(gpio, init_value * 0xFF)
+                if gpio.get("pca6416"):
+                    gpio_value = self.pca6416_get_output(gpio)
+                else:  # adp5585
+                    gpio_value = self.adp5585_get_output(gpio)
                 if err == 5:
                     print(
                         "Failed to init resistance switch "
