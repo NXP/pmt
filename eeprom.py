@@ -203,6 +203,9 @@ class FTDIEeprom:
 
     def read(self, id):
         dev_list = self.list_eeprom_devices()
+        if not dev_list:
+            print("ERROR: Board not detected or connected... Leaving.")
+            return
         if id >= len(dev_list):  # board Id specified is higher than boards connected
             print("ERROR: Board ID passed in command line doesn't exist... Leaving.")
             return
@@ -281,6 +284,9 @@ class FTDIEeprom:
     def write(self, id):
         id = 0 if id == -1 else id
         dev_list = self.list_eeprom_devices()
+        if not dev_list:
+            print("ERROR: Board not detected or connected... Leaving.")
+            return
         __, desc = self.detect_type(dev_list[id])
         self.init_system(desc, id)
         self.collect_eeprom_info()
