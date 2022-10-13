@@ -760,14 +760,15 @@ class GUI(QtWidgets.QMainWindow):
                 )
 
         if self.b.temperature_sensor and self.list_groups_t[0].isChecked():
-            self.list_temp_plot_main.setData(
-                np.array(self.temperature_buf)[:, 0],
-                np.array(self.temperature_buf)[:, 1],
-            )
-            self.list_temp_plot_zoom.setData(
-                np.array(self.temperature_buf)[:, 0],
-                np.array(self.temperature_buf)[:, 1],
-            )
+            if len(self.temperature_buf) > 1:
+                self.list_temp_plot_main.setData(
+                    np.array(self.temperature_buf)[:, 0],
+                    np.array(self.temperature_buf)[:, 1],
+                )
+                self.list_temp_plot_zoom.setData(
+                    np.array(self.temperature_buf)[:, 0],
+                    np.array(self.temperature_buf)[:, 1],
+                )
 
         if self.timer.isActive() or self.args.load:
             self.global_graph.autoRange(padding=0)
