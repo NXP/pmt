@@ -506,12 +506,15 @@ class Board:
         common_func.ftdi_i2c_start(self.ftdic, pins)
         status = common_func.ftdi_i2c_write(self.ftdic, pins, add_write)
         if status != 0:
+            print(status)
             return status
         status = common_func.ftdi_i2c_write(self.ftdic, pins, conf_cmd)
         if status != 0:
+            print(status)
             return status
         status = common_func.ftdi_i2c_write(self.ftdic, pins, intput_bitmask)
         if status != 0:
+            print(status)
             return status
         common_func.ftdi_i2c_stop(self.ftdic, pins)
 
@@ -907,6 +910,7 @@ class Board:
         global T_START
         rail_per_pac = {}
         first_probe = True
+        FTDI_LOCK.acquire()
         self.init_system(self.board_mapping_power[0])
         for index, rail in enumerate(self.board_mapping_power):
             self.init_res(rail)
@@ -935,6 +939,7 @@ class Board:
                         else:
                             break
                     rail_per_pac[rail["pac"][2]] = rail_of_pac
+        FTDI_LOCK.release()
         self.pac_set_bipolar()
         T_START = time.time()
         while not FLAG_UI_STOP:
