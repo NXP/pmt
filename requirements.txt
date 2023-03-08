@@ -3,7 +3,7 @@ ftd2xx; sys.platform=='win32'
 pylibftdi; sys.platform=='linux'
 netifaces
 numpy
-pyqtgraph
+pyqtgraph==0.12.4
 pyqt5
 pyftdi
 oyaml
