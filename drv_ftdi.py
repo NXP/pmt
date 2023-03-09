@@ -767,7 +767,7 @@ class Board:
             self.setgpio(gpio, gpio_value * 0xFF)
             if gpio.get("pca6416"):
                 check_value = self.pca6416_get_output(gpio)
-                gpio_mask = gpio["adp5585"][2]
+                gpio_mask = gpio["pca6416"][2]
             else:  # adp5585
                 check_value = self.adp5585_get_output(gpio)
                 gpio_mask = gpio["adp5585"][2]
