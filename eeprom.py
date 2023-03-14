@@ -101,10 +101,11 @@ class FTDIEeprom:
             return dev
         elif common_func.OS == "Windows":
             n = ftdi.listDevices()
-            for i, d in enumerate(n):
-                if d != b"":
-                    if chr(d[-1]) == "A":
-                        dev.append(ftdi.getDeviceInfoDetail(i))
+            if n is not None:
+                for i, d in enumerate(n):
+                    if d != b"":
+                        if chr(d[-1]) == "A":
+                            dev.append(ftdi.getDeviceInfoDetail(i))
                 else:
                     pass
             return dev
