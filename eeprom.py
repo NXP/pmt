@@ -66,13 +66,20 @@ class FTDIEeprom:
     def deinit(self):
         self.device.close()
 
-    def detect_type(self, dev):
+    def detect_type(self, id, dev):
         if common_func.OS == "Linux":
             serial_number = dev[0][4]
             self.type = 1 if serial_number is None else 0
             return self.type, dev[0]
         elif common_func.OS == "Windows":
-            self.type = 1 if len(dev["serial"]) <= 1 else 0
+            device = ftdi.open(4 * id)
+            try:
+                device.eeRead()
+            except:
+                self.type = 1
+            else:
+                self.type = 0
+            device.close()
             return self.type, dev
 
     def init_system(self, desc, ind):
@@ -221,7 +228,7 @@ class FTDIEeprom:
             id == -1 and len(dev_list) == 1
         ):  # one board connected and no board id specified
             id = 0
-        __, desc = self.detect_type(dev_list[id])
+        __, desc = self.detect_type(id, dev_list[id])
         self.init_system(desc, id)
         if self.type == 0:
             print("** Reading serial EEPROM ...\n")
@@ -288,7 +295,7 @@ class FTDIEeprom:
         if not dev_list:
             print("ERROR: Board not detected or connected... Leaving.")
             return
-        __, desc = self.detect_type(dev_list[id])
+        __, desc = self.detect_type(id, dev_list[id])
         self.init_system(desc, id)
         self.collect_eeprom_info()
         print("** Info collected.\n")
