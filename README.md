@@ -14,7 +14,7 @@ The following packages must be installed for the tool to start:
  - pylibftdi
  - numpy
  - netifaces
- - pyqtgraph
+ - pyqtgraph (0.12.4)
  - pyqt5
  - pyftdi
  - oyaml
@@ -29,10 +29,10 @@ The installation of all dependencies can be done by:
 
 The following packages must be installed for the tool to start:
 - windows-curses
-- ftd2xx
+- ftd2xx (1.3.1)
 - netifaces
 - numpy
-- pyqtgraph
+- pyqtgraph (0.12.4)
 - pyqt5
 - pyftdi
 - oyaml
