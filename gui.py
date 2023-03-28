@@ -41,8 +41,8 @@ import numpy as np
 
 import drv_ftdi
 
-PROGRAM_VERSION = "PMT v2.5.2"
-COPYRIGHT_INFO = "Copyright 2020-2022 NXP"
+PROGRAM_VERSION = "PMT v2.5.3"
+COPYRIGHT_INFO = "Copyright 2020-2023 NXP"
 
 COLORS = [
     "#8B7825",
