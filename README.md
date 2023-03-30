@@ -29,7 +29,7 @@ The installation of all dependencies can be done by:
 
 The following packages must be installed for the tool to start:
 - windows-curses
-- ftd2xx (1.3.1)
+- ftd2xx (1.1.2)
 - netifaces
 - numpy
 - pyqtgraph (0.12.4)

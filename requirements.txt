@@ -1,5 +1,5 @@
 windows-curses; sys.platform=='win32'
-ftd2xx==1.3.1; sys.platform=='win32'
+ftd2xx==1.1.2; sys.platform=='win32'
 pylibftdi; sys.platform=='linux'
 netifaces
 numpy
