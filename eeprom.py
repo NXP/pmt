@@ -72,7 +72,7 @@ class FTDIEeprom:
             self.type = 1 if serial_number is None else 0
             return self.type, dev[0]
         elif common_func.OS == "Windows":
-            device = ftdi.open(4 * id)
+            device = ftdi.openEx(dev['location'], ftdi.defines.OPEN_BY_LOCATION)
             try:
                 device.eeRead()
             except:
