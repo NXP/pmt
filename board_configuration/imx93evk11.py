@@ -58,7 +58,7 @@ mapping_power = [
         "name": "VDD_SOC",  # Low/High shunts are not in the same PAC
         "ftdi": [1, 0xF0, 0xF0],
         "pac": [2, 0x12, 2, 2, 0x11, 1],
-        "rsense": [20, 1020, 1],
+        "rsense": [5, 1005, 1],
         "rsense_ctl": "FSC_CTRL_3",
     },
     {
