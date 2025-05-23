@@ -40,6 +40,7 @@ supported_boards = [
     "val_board_1",
     "val_board_2",
     "imx93evk11",
+    "imx95evk19",
 ]
 
 """defines i2c eeprom of the different supported boards. Don't specify serial eeprom"""

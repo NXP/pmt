@@ -263,6 +263,7 @@ class Board:
             "NXP VAL_BOARD_1 Board": "val_board_1",
             "NXP VAL_BOARD_2 Board": "val_board_2",
             "NXP i.MX93 EVK Board": "imx93evk11",
+            "NXP i.MX95 EVK Board": "imx95evk19",
         }
         boards_infos = []
         dev_list = self.eeprom.list_eeprom_devices()
@@ -282,6 +283,7 @@ class Board:
                             "val_board_2",
                             "imx8ulpevk9",
                             "imx93evk11",
+                            "imx95evk19",
                         ]:  # temporary hack to be align with bcu (don't specify board revision for these boards)
                             board_id = board_id + board_rev.lower()
                         boards_infos.append({"name": board_id, "loc_id": ind})
@@ -299,6 +301,7 @@ class Board:
                         "val_board_2",
                         "imx8ulpevk9",
                         "imx93evk11",
+                        "imx95evk19",
                     ]:  # temporary hack to be align with bcu (don't specify board revision for these boards)
                         board_id = board_id + board_rev.lower()
                     boards_infos.append({"name": board_id, "loc_id": ind})

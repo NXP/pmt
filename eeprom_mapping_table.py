@@ -52,6 +52,7 @@ INFOS = [
             "0x9": "NXP VAL_BOARD_2 Board",
             "0xa": "NXP i.MX8ULP EVK9 Board",
             "0xc": "NXP i.MX93 EVK Board",  # Skip 0xb to be aligned with BCU Tool
+            "0xf": "NXP i.MX95 EVK Board",  # Skip 0xd, 0xe to be aligned with BCU Tool
         },
     },
     {
@@ -63,6 +64,7 @@ INFOS = [
             "0x4": "VAL_BOARD_1",
             "0x5": "VAL_BOARD_2",
             "0x6": "i.MX93",
+            "0x7": "i.MX95",
         },
     },
     {
@@ -75,6 +77,8 @@ INFOS = [
             "0x5": "PCA9450AAHN",
             "0x6": "PCA9450BHN",
             "0x8": "PCA9451AHN",  # Skip 0x7 to be aligned with BCU Tool
+            "0x9": "PPF0900AMBA1ES",
+            "0x13": "PF9453AHN"   # Skip to 0x13 to be aligned with BCU Tool
         },
     },
 ]

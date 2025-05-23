@@ -41,6 +41,7 @@
 #    - NXP VAL_BOARD_1 Board
 #    - NXP VAL_BOARD_2 Board
 #    - NXP i.MX93 EVK Board
+#    - NXP i.MX95 EVK Board
 
 BOARD_ID: NXP i.MX8MP EVK PWR Board
 
@@ -60,6 +61,7 @@ BOARD_REV: A1
 #    - VAL_BOARD_1
 #    - VAL_BOARD_2
 #    - i.MX93
+#    - i.MX95
 
 SOC_ID: i.MX8MP
 
@@ -79,6 +81,8 @@ SOC_REV: A1
 #    - PCA9450AAHN
 #    - PCA9450BHN
 #    - PCA9451AHN
+#    - PPF0900AMBA1ES
+#    - PF9453AHN
 #    - "NOT FOUND" if no information
 
 PMIC_ID: PCA9450CHN
